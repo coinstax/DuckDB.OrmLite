@@ -25,6 +25,7 @@ This package enables ServiceStack.OrmLite to work with [DuckDB](https://duckdb.o
 - Complete CRUD operations
 - LINQ query expressions
 - Transactions
+- AutoIncrement with sequences and INSERT...RETURNING
 - Complex queries (JOINs, aggregations, subqueries)
 - Parameterized queries
 - Batch operations
@@ -211,7 +212,6 @@ DuckDB is optimized for analytical workloads:
 
 ## Limitations
 
-- **AutoIncrement**: Currently uses explicit ID assignment (sequences can be implemented if needed)
 - **TimeSpan**: Limited to ~24 hours when using HH:MM:SS format
 - **Concurrent writes**: DuckDB uses single-writer model
 

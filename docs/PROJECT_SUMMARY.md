@@ -113,18 +113,14 @@ DuckDB.OrmLite/
 
 ## Known Limitations
 
-1. **AutoIncrement**: Currently uses explicit ID assignment
-   - Can be implemented with sequences if needed
-   - INSERT...RETURNING is ready for future implementation
-
-2. **TimeSpan**: Limited to ~24 hours with HH:MM:SS format
+1. **TimeSpan**: Limited to ~24 hours with HH:MM:SS format
    - Can be extended if longer durations are needed
 
-3. **Concurrent Writes**: DuckDB uses single-writer model
+2. **Concurrent Writes**: DuckDB uses single-writer model
    - Multiple readers are supported
    - Consider this for high-concurrency scenarios
 
-4. **Test Flakiness**: 2 tests occasionally fail (5% failure rate)
+3. **Test Flakiness**: 2 tests occasionally fail (5% failure rate)
    - Both in ExampleUsageTests
    - Due to test execution order dependencies
    - Does not affect library functionality
@@ -155,12 +151,11 @@ DuckDB excels at:
 ## Future Enhancements
 
 Potential improvements:
-1. AutoIncrement with sequences
-2. Support for DuckDB-specific types (LIST, STRUCT, MAP)
-3. Parquet/CSV direct operations through OrmLite
-4. Async operations support
-5. Multi-target framework (net6.0, net7.0, net8.0)
-6. Additional DuckDB configuration options
+1. Support for DuckDB-specific types (LIST, STRUCT, MAP)
+2. Parquet/CSV direct operations through OrmLite
+3. Async operations support
+4. Multi-target framework (net6.0, net7.0, net8.0)
+5. Additional DuckDB configuration options
 
 ## Getting Started
 
