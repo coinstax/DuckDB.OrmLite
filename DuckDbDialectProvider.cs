@@ -223,50 +223,14 @@ public class DuckDbDialectProvider : OrmLiteDialectProviderBase<DuckDbDialectPro
     public override void InitQueryParam(IDbDataParameter p)
     {
         base.InitQueryParam(p);
-        var originalName = p.ParameterName;
-        // DuckDB.NET expects: SQL has $Name, but parameter.ParameterName = "Name" (without $)
-        // Also handle positional parameters: $0 -> "1" (DuckDB uses 1-based indexing)
-        if (p.ParameterName.StartsWith("$"))
-        {
-            var nameWithoutPrefix = p.ParameterName.Substring(1);
-            // If it's a numeric positional parameter, convert from 0-based to 1-based
-            if (int.TryParse(nameWithoutPrefix, out int index))
-            {
-                p.ParameterName = (index + 1).ToString();
-            }
-            else
-            {
-                p.ParameterName = nameWithoutPrefix;
-            }
-        }
-        Console.WriteLine($"InitQueryParam: {originalName} -> {p.ParameterName}");
+        // Don't strip $ here - let SqlExpression use it to generate SQL with $ placeholders
+        // We'll strip it in BeforeExecFilter right before DuckDB.NET execution
     }
 
     public override void SetParameterValues<T>(IDbCommand dbCmd, object obj)
     {
         // Call base to populate values
         base.SetParameterValues<T>(dbCmd, obj);
-
-        // After OrmLite is done, strip $ prefix from named parameters only
-        // Keep the $ for positional parameters but convert to 1-based
-        foreach (IDbDataParameter param in dbCmd.Parameters)
-        {
-            if (param.ParameterName.StartsWith("$"))
-            {
-                var nameWithoutPrefix = param.ParameterName.Substring(1);
-                // If it's a numeric positional parameter, just strip $ (it's already been converted in SQL)
-                if (int.TryParse(nameWithoutPrefix, out int index))
-                {
-                    // SQL has been rewritten to use 1-based, param names should match
-                    // DuckDB.NET expects parameter name without $ but SQL with $
-                    param.ParameterName = (index + 1).ToString();
-                }
-                else
-                {
-                    // Named parameters: strip $ from parameter name
-                    param.ParameterName = nameWithoutPrefix;
-                }
-            }
-        }
+        // Parameter name conversion handled in BeforeExecFilter
     }
 }

@@ -34,20 +34,12 @@ public class ExampleUsageTests : IDisposable
             }
             dbCmd.CommandText = sql;
 
-            // Also fix parameter names: $0 -> 1, $1 -> 2, etc.
+            // Strip $ from ALL parameter names for DuckDB.NET (it expects names without $ but SQL with $)
             foreach (System.Data.IDbDataParameter param in dbCmd.Parameters)
             {
                 if (param.ParameterName.StartsWith("$"))
                 {
-                    var nameWithoutPrefix = param.ParameterName.Substring(1);
-                    if (int.TryParse(nameWithoutPrefix, out int index))
-                    {
-                        param.ParameterName = (index + 1).ToString();
-                    }
-                    else
-                    {
-                        param.ParameterName = nameWithoutPrefix;
-                    }
+                    param.ParameterName = param.ParameterName.Substring(1);
                 }
             }
         };
