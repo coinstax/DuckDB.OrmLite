@@ -20,7 +20,7 @@ The package is configured in `src/DuckDB.OrmLite/DuckDB.OrmLite.csproj`:
 <PropertyGroup>
   <PackageId>DuckDB.OrmLite</PackageId>
   <Version>1.0.0</Version>
-  <Authors>Colin Mackie</Authors>
+  <Authors>CoinsTax LLC</Authors>
   <Description>DuckDB provider for ServiceStack.OrmLite...</Description>
   <PackageTags>ServiceStack;OrmLite;DuckDB;ORM;Database;Analytics;OLAP;DataProcessing</PackageTags>
   <PackageProjectUrl>https://github.com/coinstax/DuckDB.OrmLite</PackageProjectUrl>
