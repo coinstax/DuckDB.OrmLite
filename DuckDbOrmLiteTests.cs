@@ -54,6 +54,7 @@ public class DuckDbOrmLiteTests : IDisposable
 
         var entity = new BasicTypeTest
         {
+            Id = 1,  // Explicitly set ID
             Name = "Test",
             Age = 25,
             IsActive = true,
@@ -66,7 +67,7 @@ public class DuckDbOrmLiteTests : IDisposable
 
         db.Insert(entity);
 
-        var retrieved = db.SingleById<BasicTypeTest>(entity.Id);
+        var retrieved = db.SingleById<BasicTypeTest>(1);
 
         Assert.NotNull(retrieved);
         Assert.Equal(entity.Name, retrieved.Name);
@@ -85,14 +86,14 @@ public class DuckDbOrmLiteTests : IDisposable
 
         db.CreateTable<BasicTypeTest>(overwrite: true);
 
-        var entity = new BasicTypeTest { Name = "Original", Age = 25 };
+        var entity = new BasicTypeTest { Id = 1, Name = "Original", Age = 25 };
         db.Insert(entity);
 
         entity.Name = "Updated";
         entity.Age = 30;
         db.Update(entity);
 
-        var retrieved = db.SingleById<BasicTypeTest>(entity.Id);
+        var retrieved = db.SingleById<BasicTypeTest>(1);
 
         Assert.Equal("Updated", retrieved.Name);
         Assert.Equal(30, retrieved.Age);
@@ -105,12 +106,12 @@ public class DuckDbOrmLiteTests : IDisposable
 
         db.CreateTable<BasicTypeTest>(overwrite: true);
 
-        var entity = new BasicTypeTest { Name = "ToDelete", Age = 25 };
+        var entity = new BasicTypeTest { Id = 1, Name = "ToDelete", Age = 25 };
         db.Insert(entity);
 
-        db.DeleteById<BasicTypeTest>(entity.Id);
+        db.DeleteById<BasicTypeTest>(1);
 
-        var retrieved = db.SingleById<BasicTypeTest>(entity.Id);
+        var retrieved = db.SingleById<BasicTypeTest>(1);
         Assert.Null(retrieved);
     }
 
@@ -121,9 +122,9 @@ public class DuckDbOrmLiteTests : IDisposable
 
         db.CreateTable<BasicTypeTest>(overwrite: true);
 
-        db.Insert(new BasicTypeTest { Name = "John", Age = 25 });
-        db.Insert(new BasicTypeTest { Name = "Jane", Age = 30 });
-        db.Insert(new BasicTypeTest { Name = "Bob", Age = 35 });
+        db.Insert(new BasicTypeTest { Id = 1, Name = "John", Age = 25 });
+        db.Insert(new BasicTypeTest { Id = 2, Name = "Jane", Age = 30 });
+        db.Insert(new BasicTypeTest { Id = 3, Name = "Bob", Age = 35 });
 
         var results = db.Select<BasicTypeTest>(x => x.Age > 25);
 
@@ -138,8 +139,8 @@ public class DuckDbOrmLiteTests : IDisposable
 
         db.CreateTable<BasicTypeTest>(overwrite: true);
 
-        db.Insert(new BasicTypeTest { Name = "John", Age = 25 });
-        db.Insert(new BasicTypeTest { Name = "Jane", Age = 30 });
+        db.Insert(new BasicTypeTest { Id = 1, Name = "John", Age = 25 });
+        db.Insert(new BasicTypeTest { Id = 2, Name = "Jane", Age = 30 });
 
         var results = db.Select<BasicTypeTest>("Age > $1", 25);
 
@@ -155,7 +156,7 @@ public class DuckDbOrmLiteTests : IDisposable
         db.CreateTable<BasicTypeTest>(overwrite: true);
 
         var guid = Guid.NewGuid();
-        var entity = new BasicTypeTest { Name = "Test", UserId = guid };
+        var entity = new BasicTypeTest { Id = 1, Name = "Test", UserId = guid };
 
         db.Insert(entity);
 
@@ -173,11 +174,11 @@ public class DuckDbOrmLiteTests : IDisposable
         db.CreateTable<BasicTypeTest>(overwrite: true);
 
         var now = DateTime.UtcNow;
-        var entity = new BasicTypeTest { Name = "Test", CreatedAt = now };
+        var entity = new BasicTypeTest { Id = 1, Name = "Test", CreatedAt = now };
 
         db.Insert(entity);
 
-        var retrieved = db.SingleById<BasicTypeTest>(entity.Id);
+        var retrieved = db.SingleById<BasicTypeTest>(1);
 
         Assert.NotNull(retrieved);
         // Allow small difference due to precision
@@ -191,11 +192,11 @@ public class DuckDbOrmLiteTests : IDisposable
 
         db.CreateTable<BasicTypeTest>(overwrite: true);
 
-        var entity = new BasicTypeTest { Name = "Test", Balance = 12345.678901m };
+        var entity = new BasicTypeTest { Id = 1, Name = "Test", Balance = 12345.678901m };
 
         db.Insert(entity);
 
-        var retrieved = db.SingleById<BasicTypeTest>(entity.Id);
+        var retrieved = db.SingleById<BasicTypeTest>(1);
 
         Assert.NotNull(retrieved);
         Assert.Equal(entity.Balance, retrieved.Balance);
@@ -209,11 +210,11 @@ public class DuckDbOrmLiteTests : IDisposable
         db.CreateTable<BlobTest>(overwrite: true);
 
         var data = new byte[] { 1, 2, 3, 4, 5 };
-        var entity = new BlobTest { Name = "Test", Data = data };
+        var entity = new BlobTest { Id = 1, Name = "Test", Data = data };
 
         db.Insert(entity);
 
-        var retrieved = db.SingleById<BlobTest>(entity.Id);
+        var retrieved = db.SingleById<BlobTest>(1);
 
         Assert.NotNull(retrieved);
         Assert.Equal(data, retrieved.Data);
@@ -226,9 +227,9 @@ public class DuckDbOrmLiteTests : IDisposable
 
         db.CreateTable<BasicTypeTest>(overwrite: true);
 
-        db.Insert(new BasicTypeTest { Name = "Charlie", Age = 30 });
-        db.Insert(new BasicTypeTest { Name = "Alice", Age = 25 });
-        db.Insert(new BasicTypeTest { Name = "Bob", Age = 35 });
+        db.Insert(new BasicTypeTest { Id = 1, Name = "Charlie", Age = 30 });
+        db.Insert(new BasicTypeTest { Id = 2, Name = "Alice", Age = 25 });
+        db.Insert(new BasicTypeTest { Id = 3, Name = "Bob", Age = 35 });
 
         var results = db.Select(db.From<BasicTypeTest>().OrderBy(x => x.Name));
 
@@ -247,7 +248,7 @@ public class DuckDbOrmLiteTests : IDisposable
 
         for (int i = 1; i <= 10; i++)
         {
-            db.Insert(new BasicTypeTest { Name = $"User{i}", Age = i });
+            db.Insert(new BasicTypeTest { Id = i, Name = $"User{i}", Age = i });
         }
 
         var results = db.Select(db.From<BasicTypeTest>().OrderBy(x => x.Age).Limit(5).Skip(3));
@@ -264,9 +265,9 @@ public class DuckDbOrmLiteTests : IDisposable
 
         db.CreateTable<BasicTypeTest>(overwrite: true);
 
-        db.Insert(new BasicTypeTest { Name = "User1", Age = 25 });
-        db.Insert(new BasicTypeTest { Name = "User2", Age = 30 });
-        db.Insert(new BasicTypeTest { Name = "User3", Age = 35 });
+        db.Insert(new BasicTypeTest { Id = 1, Name = "User1", Age = 25 });
+        db.Insert(new BasicTypeTest { Id = 2, Name = "User2", Age = 30 });
+        db.Insert(new BasicTypeTest { Id = 3, Name = "User3", Age = 35 });
 
         var count = db.Count<BasicTypeTest>(x => x.Age > 25);
 
@@ -282,6 +283,7 @@ public class DuckDbOrmLiteTests : IDisposable
 
         var entity = new IntegerTypeTest
         {
+            Id = 1,
             TinyInt = 127,
             UTinyInt = 255,
             SmallInt = 32767,
@@ -294,7 +296,7 @@ public class DuckDbOrmLiteTests : IDisposable
 
         db.Insert(entity);
 
-        var retrieved = db.SingleById<IntegerTypeTest>(entity.Id);
+        var retrieved = db.SingleById<IntegerTypeTest>(1);
 
         Assert.NotNull(retrieved);
         Assert.Equal(entity.TinyInt, retrieved.TinyInt);
@@ -328,6 +330,7 @@ public class DuckDbOrmLiteTests : IDisposable
 
         var entity = new NullableTest
         {
+            Id = 1,
             Name = "Test",
             Age = null,
             IsActive = null,
@@ -336,7 +339,7 @@ public class DuckDbOrmLiteTests : IDisposable
 
         db.Insert(entity);
 
-        var retrieved = db.SingleById<NullableTest>(entity.Id);
+        var retrieved = db.SingleById<NullableTest>(1);
 
         Assert.NotNull(retrieved);
         Assert.Null(retrieved.Age);
@@ -351,9 +354,9 @@ public class DuckDbOrmLiteTests : IDisposable
 
         db.CreateTable<BasicTypeTest>(overwrite: true);
 
-        db.Insert(new BasicTypeTest { Name = "John", Age = 25, IsActive = true });
-        db.Insert(new BasicTypeTest { Name = "Jane", Age = 30, IsActive = false });
-        db.Insert(new BasicTypeTest { Name = "Bob", Age = 35, IsActive = true });
+        db.Insert(new BasicTypeTest { Id = 1, Name = "John", Age = 25, IsActive = true });
+        db.Insert(new BasicTypeTest { Id = 2, Name = "Jane", Age = 30, IsActive = false });
+        db.Insert(new BasicTypeTest { Id = 3, Name = "Bob", Age = 35, IsActive = true });
 
         var results = db.Select<BasicTypeTest>(x => x.Age > 25 && x.IsActive);
 
@@ -365,7 +368,7 @@ public class DuckDbOrmLiteTests : IDisposable
 // Test Models
 public class BasicTypeTest
 {
-    [AutoIncrement]
+    [PrimaryKey]
     public int Id { get; set; }
 
     public string Name { get; set; }
@@ -380,7 +383,7 @@ public class BasicTypeTest
 
 public class BlobTest
 {
-    [AutoIncrement]
+    [PrimaryKey]
     public int Id { get; set; }
 
     public string Name { get; set; }
@@ -389,7 +392,7 @@ public class BlobTest
 
 public class IntegerTypeTest
 {
-    [AutoIncrement]
+    [PrimaryKey]
     public int Id { get; set; }
 
     public sbyte TinyInt { get; set; }
@@ -404,7 +407,7 @@ public class IntegerTypeTest
 
 public class NullableTest
 {
-    [AutoIncrement]
+    [PrimaryKey]
     public int Id { get; set; }
 
     public string Name { get; set; }
