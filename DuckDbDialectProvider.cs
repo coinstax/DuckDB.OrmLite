@@ -223,7 +223,24 @@ public class DuckDbDialectProvider : OrmLiteDialectProviderBase<DuckDbDialectPro
     public override void InitQueryParam(IDbDataParameter p)
     {
         base.InitQueryParam(p);
-        // Keep $ in parameter names - we'll strip it temporarily in SetParameterValues
+        // Keep $ in parameter names - we'll strip it in BeforeExecFilter
+
+        Console.WriteLine($"InitQueryParam: Name={p.ParameterName}, Value={p.Value}, DbType={p.DbType}, ValueType={p.Value?.GetType().Name}");
+
+        // Base InitQueryParam should have set DbType based on value type
+        // If not set and we have a value, infer the DbType
+        if (p.DbType == DbType.String && p.Value != null && p.Value != DBNull.Value && p.Value is not string)
+        {
+            // DbType was defaulted to String but value is not a string
+            var valueType = p.Value.GetType();
+            var converter = GetConverter(valueType);
+            if (converter != null)
+            {
+                Console.WriteLine($"  Correcting DbType from String to {converter.DbType} for {valueType.Name}");
+                p.DbType = converter.DbType;
+                p.Value = converter.ToDbValue(valueType, p.Value);
+            }
+        }
     }
 
     public override void SetParameterValues<T>(IDbCommand dbCmd, object obj)
@@ -249,7 +266,18 @@ public class DuckDbDialectProvider : OrmLiteDialectProviderBase<DuckDbDialectPro
             {
                 // Get the value from the object
                 var value = fieldDef.GetValue(obj);
-                param.Value = value ?? DBNull.Value;
+
+                // Let the converter handle the value and DbType
+                var converter = GetConverter(fieldDef.FieldType);
+                if (converter != null)
+                {
+                    param.Value = converter.ToDbValue(fieldDef.FieldType, value) ?? DBNull.Value;
+                    param.DbType = converter.DbType;
+                }
+                else
+                {
+                    param.Value = value ?? DBNull.Value;
+                }
             }
         }
     }

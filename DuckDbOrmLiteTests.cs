@@ -28,12 +28,21 @@ public class DuckDbOrmLiteTests : IDisposable
             }
             dbCmd.CommandText = sql;
 
-            // Strip $ from ALL parameter names for DuckDB.NET (it expects names without $ but SQL with $)
+            // Strip $ from parameter names and convert 0-based positional to 1-based
             foreach (System.Data.IDbDataParameter param in dbCmd.Parameters)
             {
                 if (param.ParameterName.StartsWith("$"))
                 {
-                    param.ParameterName = param.ParameterName.Substring(1);
+                    var nameWithoutPrefix = param.ParameterName.Substring(1);
+                    // If it's a numeric positional parameter, convert 0-based to 1-based
+                    if (int.TryParse(nameWithoutPrefix, out int index))
+                    {
+                        param.ParameterName = (index + 1).ToString();
+                    }
+                    else
+                    {
+                        param.ParameterName = nameWithoutPrefix;
+                    }
                 }
             }
 

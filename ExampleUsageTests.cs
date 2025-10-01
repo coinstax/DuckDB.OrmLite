@@ -25,6 +25,9 @@ public class ExampleUsageTests : IDisposable
         // Fix 0-based positional parameters to 1-based for DuckDB
         OrmLiteConfig.BeforeExecFilter = dbCmd =>
         {
+            _output.WriteLine($"[BeforeExecFilter] SQL BEFORE: {dbCmd.CommandText}");
+            _output.WriteLine($"[BeforeExecFilter] Params BEFORE: {string.Join(", ", dbCmd.Parameters.Cast<System.Data.IDbDataParameter>().Select(p => $"{p.ParameterName}={p.Value}"))}");
+
             // DuckDB uses 1-based positional parameters ($1, $2), but OrmLite uses 0-based ($0, $1)
             // Convert SQL: $0 -> $1, $1 -> $2, etc.
             var sql = dbCmd.CommandText;
@@ -34,14 +37,26 @@ public class ExampleUsageTests : IDisposable
             }
             dbCmd.CommandText = sql;
 
-            // Strip $ from ALL parameter names for DuckDB.NET (it expects names without $ but SQL with $)
+            // Strip $ from parameter names and convert 0-based positional to 1-based
             foreach (System.Data.IDbDataParameter param in dbCmd.Parameters)
             {
                 if (param.ParameterName.StartsWith("$"))
                 {
-                    param.ParameterName = param.ParameterName.Substring(1);
+                    var nameWithoutPrefix = param.ParameterName.Substring(1);
+                    // If it's a numeric positional parameter, convert 0-based to 1-based
+                    if (int.TryParse(nameWithoutPrefix, out int index))
+                    {
+                        param.ParameterName = (index + 1).ToString();
+                    }
+                    else
+                    {
+                        param.ParameterName = nameWithoutPrefix;
+                    }
                 }
             }
+
+            _output.WriteLine($"[BeforeExecFilter] SQL AFTER: {dbCmd.CommandText}");
+            _output.WriteLine($"[BeforeExecFilter] Params AFTER: {string.Join(", ", dbCmd.Parameters.Cast<System.Data.IDbDataParameter>().Select(p => $"{p.ParameterName}={p.Value}"))}");
         };
     }
 
