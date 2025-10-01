@@ -186,6 +186,14 @@ DuckDB requires parameter handling that differs slightly from other databases. T
 // - DbType.Currency → DbType.Decimal conversion
 ```
 
+## Dependencies
+
+This package depends on:
+- [ServiceStack.OrmLite](https://www.nuget.org/packages/ServiceStack.OrmLite) (>= 8.5.2) - The ORM framework
+- [DuckDB.NET.Data.Full](https://www.nuget.org/packages/DuckDB.NET.Data.Full) (>= 1.3.0) - .NET bindings for DuckDB
+
+Both dependencies are automatically installed when you add this package.
+
 ## Compatibility
 
 - **.NET**: 8.0+
