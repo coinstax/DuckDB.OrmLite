@@ -7,8 +7,10 @@
    - Go to https://www.nuget.org/account/apikeys
    - Click "Create"
    - Give it a name (e.g., "DuckDB.OrmLite")
-   - Select scopes (Push new packages and package versions)
-   - Select packages (All or specific patterns)
+   - Select scopes: **Push new packages and package versions**
+   - Select packages:
+     - **Option A**: Choose "All" (simpler, less secure)
+     - **Option B**: Choose "Glob pattern" and enter `DuckDB.OrmLite*` (more secure, recommended)
    - Click "Create"
    - **IMPORTANT**: Copy the API key immediately (you won't be able to see it again)
 
