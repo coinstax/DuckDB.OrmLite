@@ -16,53 +16,10 @@ public class DuckDbOrmLiteTests : IDisposable
         // Use in-memory database for tests
         _dbFactory = new DuckDbOrmLiteConnectionFactory("Data Source=:memory:");
 
-        // Enable SQL logging and fix parameters for DuckDB positional binding
-        OrmLiteConfig.BeforeExecFilter = dbCmd =>
-        {
-            Console.WriteLine(dbCmd.GetDebugString());
-
-            // DuckDB requires positional parameters WITHOUT names
-            // Find all parameter names in the SQL in order
-            var paramMatches = System.Text.RegularExpressions.Regex.Matches(
-                dbCmd.CommandText, @"\?(\w+)");
-
-            if (paramMatches.Count > 0)
-            {
-                // Create a new parameter collection in SQL order
-                var orderedParams = new System.Collections.Generic.List<System.Data.IDbDataParameter>();
-
-                foreach (System.Text.RegularExpressions.Match match in paramMatches)
-                {
-                    var paramName = "?" + match.Groups[1].Value;
-
-                    // Find this parameter in the collection
-                    foreach (System.Data.IDbDataParameter param in dbCmd.Parameters)
-                    {
-                        if (param.ParameterName == paramName)
-                        {
-                            // Create a new parameter with no name
-                            var newParam = dbCmd.CreateParameter();
-                            newParam.Value = param.Value;
-                            newParam.DbType = param.DbType;
-                            newParam.ParameterName = string.Empty;
-                            orderedParams.Add(newParam);
-                            break;
-                        }
-                    }
-                }
-
-                // Replace parameters with ordered list
-                dbCmd.Parameters.Clear();
-                foreach (var param in orderedParams)
-                {
-                    dbCmd.Parameters.Add(param);
-                }
-            }
-
-            // Replace ?Name with ? in SQL
-            dbCmd.CommandText = System.Text.RegularExpressions.Regex.Replace(
-                dbCmd.CommandText, @"\?\w+", "?");
-        };
+        // Enable SQL logging
+        // DuckDB.NET supports named parameters with $name syntax natively
+        // No special parameter handling needed!
+        OrmLiteConfig.BeforeExecFilter = dbCmd => Console.WriteLine(dbCmd.GetDebugString());
     }
 
     public void Dispose()

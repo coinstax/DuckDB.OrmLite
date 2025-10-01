@@ -17,7 +17,7 @@ public class DuckDbDialectProvider : OrmLiteDialectProviderBase<DuckDbDialectPro
     {
         base.AutoIncrementDefinition = "";  // DuckDB doesn't use a special AUTO_INCREMENT keyword
         base.DefaultValueFormat = " DEFAULT {0}";
-        base.ParamString = "?";
+        base.ParamString = "$";  // DuckDB uses $name for named parameters
 
         // Set naming strategy
         base.NamingStrategy = new OrmLiteNamingStrategyBase();
@@ -146,21 +146,15 @@ public class DuckDbDialectProvider : OrmLiteDialectProviderBase<DuckDbDialectPro
         return sbSql.ToString();
     }
 
-    public override string ToSelectStatement(Type tableType, string sqlFilter, params object[] filterParams)
-    {
-        var sql = base.ToSelectStatement(tableType, sqlFilter, filterParams);
-        return ReplaceNamedParametersWithPositional(sql);
-    }
-
     public override bool DoesTableExist(IDbCommand dbCmd, string tableName, string? schema = null)
     {
-        var sql = "SELECT COUNT(*) FROM information_schema.tables WHERE table_name = ?";
+        var sql = "SELECT COUNT(*) FROM information_schema.tables WHERE table_name = $tableName";
 
         dbCmd.CommandText = sql;
         dbCmd.Parameters.Clear();
         var p = CreateParam();
+        p.ParameterName = "tableName";  // Named parameter without $ prefix
         p.Value = tableName;
-        p.ParameterName = string.Empty;  // Use positional parameter
         dbCmd.Parameters.Add(p);
 
         var result = dbCmd.ExecuteScalar();
@@ -204,10 +198,11 @@ public class DuckDbDialectProvider : OrmLiteDialectProviderBase<DuckDbDialectPro
 
     public override bool DoesSchemaExist(IDbCommand dbCmd, string schemaName)
     {
-        var sql = "SELECT COUNT(*) FROM information_schema.schemata WHERE schema_name = ?";
+        var sql = "SELECT COUNT(*) FROM information_schema.schemata WHERE schema_name = $schemaName";
         dbCmd.CommandText = sql;
         dbCmd.Parameters.Clear();
         var p = CreateParam();
+        p.ParameterName = "schemaName";
         p.Value = schemaName;
         dbCmd.Parameters.Add(p);
 
@@ -220,81 +215,28 @@ public class DuckDbDialectProvider : OrmLiteDialectProviderBase<DuckDbDialectPro
         return $"CREATE SCHEMA IF NOT EXISTS {GetQuotedName(schemaName)}";
     }
 
-    public override void PrepareParameterizedInsertStatement<T>(IDbCommand dbCmd, ICollection<string>? insertFields = null, Func<FieldDefinition, bool>? shouldInclude = null)
+    public override void InitQueryParam(IDbDataParameter p)
     {
-        // Call base implementation to set up parameters with values
-        base.PrepareParameterizedInsertStatement<T>(dbCmd, insertFields, shouldInclude);
-
-        // Now fix the SQL to use positional ? instead of ?Name
-        var modelDef = GetModel(typeof(T));
-        var sbColumnNames = new StringBuilder();
-        var sbColumnValues = new StringBuilder();
-
-        var fieldDefs = insertFields != null
-            ? modelDef.FieldDefinitionsArray.Where(x => insertFields.Contains(x.Name))
-            : modelDef.FieldDefinitionsArray.Where(x => shouldInclude == null || shouldInclude(x));
-
-        foreach (var fieldDef in fieldDefs)
+        base.InitQueryParam(p);
+        // DuckDB.NET expects: SQL has $Name, but parameter.ParameterName = "Name" (without $)
+        if (p.ParameterName.StartsWith("$"))
         {
-            if (fieldDef.AutoIncrement) continue;
-
-            if (sbColumnNames.Length > 0)
-            {
-                sbColumnNames.Append(",");
-                sbColumnValues.Append(",");
-            }
-
-            sbColumnNames.Append(GetQuotedColumnName(fieldDef.FieldName));
-            sbColumnValues.Append("?");
+            p.ParameterName = p.ParameterName.Substring(1);
         }
-
-        // Override the command text with properly quoted column names and positional parameters
-        dbCmd.CommandText = $"INSERT INTO {GetQuotedTableName(modelDef)} ({sbColumnNames}) VALUES ({sbColumnValues})";
     }
 
     public override void SetParameterValues<T>(IDbCommand dbCmd, object obj)
     {
-        // Call base implementation to populate all parameter values
+        // Call base to populate values
         base.SetParameterValues<T>(dbCmd, obj);
 
-        // After values are set, strip parameter names for DuckDB's positional binding
-        StripParameterNames(dbCmd);
-    }
-
-    public override void PrepareStoredProcedureStatement<T>(IDbCommand dbCmd, T obj)
-    {
-        base.PrepareStoredProcedureStatement(dbCmd, obj);
-        StripParameterNames(dbCmd);
-    }
-
-    public override void SetParameter(FieldDefinition fieldDef, IDbDataParameter p)
-    {
-        base.SetParameter(fieldDef, p);
-    }
-
-    public override void InitQueryParam(IDbDataParameter p)
-    {
-        base.InitQueryParam(p);
-        // After initialization, strip the parameter name for positional binding
-        p.ParameterName = string.Empty;
-    }
-
-    private string ReplaceNamedParametersWithPositional(string sql)
-    {
-        // Replace any ?Name style parameters with just ?
-        // This regex matches ? followed by any word characters
-        return System.Text.RegularExpressions.Regex.Replace(sql, @"\?\w+", "?");
-    }
-
-    private void StripParameterNames(IDbCommand dbCmd)
-    {
-        // DuckDB.NET requires empty parameter names when using ? syntax for positional binding
-        // Also need to replace named parameters in SQL with positional ?
-        dbCmd.CommandText = ReplaceNamedParametersWithPositional(dbCmd.CommandText);
-
+        // After OrmLite is done, strip $ prefix from all parameter names for DuckDB.NET
         foreach (IDbDataParameter param in dbCmd.Parameters)
         {
-            param.ParameterName = string.Empty;
+            if (param.ParameterName.StartsWith("$"))
+            {
+                param.ParameterName = param.ParameterName.Substring(1);
+            }
         }
     }
 }
