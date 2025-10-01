@@ -60,11 +60,19 @@ This was a critical bug that prevented v1.0.0 from working in real applications.
 
 ## [Unreleased]
 
-### Planned Features
+### Planned for v1.1.0
+- Async/Await support - Async versions of all operations
+- Bulk operations optimization using DuckDB's COPY command
+- Direct Parquet/CSV operations through OrmLite
+- Connection pooling improvements for better concurrent reads
+
+### Under Consideration
 - Support for DuckDB-specific types (LIST, STRUCT, MAP)
-- Parquet/CSV direct operations through OrmLite
-- Async operations support
-- Multi-target framework (net6.0, net7.0, net8.0)
+- Window functions support with LINQ extensions
+- DuckDB-specific aggregate functions
+- Time series optimizations and ASOF joins
+- Query performance profiling integration
+- Schema migration tools
 - Additional DuckDB configuration options
 
 ---
