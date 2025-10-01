@@ -215,6 +215,11 @@ public class DuckDbDialectProvider : OrmLiteDialectProviderBase<DuckDbDialectPro
         return $"CREATE SCHEMA IF NOT EXISTS {GetQuotedName(schemaName)}";
     }
 
+    public override SqlExpression<T> SqlExpression<T>()
+    {
+        return new DuckDbSqlExpression<T>(this);
+    }
+
     public override void InitQueryParam(IDbDataParameter p)
     {
         base.InitQueryParam(p);
