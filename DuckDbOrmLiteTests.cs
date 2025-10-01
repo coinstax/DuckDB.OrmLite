@@ -1,0 +1,457 @@
+using System;
+using System.Numerics;
+using ServiceStack.DataAnnotations;
+using ServiceStack.OrmLite;
+using ServiceStack.OrmLite.DuckDb;
+using Xunit;
+
+namespace DuckDbOrmLite.Tests;
+
+public class DuckDbOrmLiteTests : IDisposable
+{
+    private readonly OrmLiteConnectionFactory _dbFactory;
+
+    public DuckDbOrmLiteTests()
+    {
+        // Use in-memory database for tests
+        _dbFactory = new DuckDbOrmLiteConnectionFactory("Data Source=:memory:");
+
+        // Enable SQL logging and fix parameters for DuckDB positional binding
+        OrmLiteConfig.BeforeExecFilter = dbCmd =>
+        {
+            Console.WriteLine(dbCmd.GetDebugString());
+
+            // DuckDB requires positional parameters WITHOUT names
+            // Find all parameter names in the SQL in order
+            var paramMatches = System.Text.RegularExpressions.Regex.Matches(
+                dbCmd.CommandText, @"\?(\w+)");
+
+            if (paramMatches.Count > 0)
+            {
+                // Create a new parameter collection in SQL order
+                var orderedParams = new System.Collections.Generic.List<System.Data.IDbDataParameter>();
+
+                foreach (System.Text.RegularExpressions.Match match in paramMatches)
+                {
+                    var paramName = "?" + match.Groups[1].Value;
+
+                    // Find this parameter in the collection
+                    foreach (System.Data.IDbDataParameter param in dbCmd.Parameters)
+                    {
+                        if (param.ParameterName == paramName)
+                        {
+                            // Create a new parameter with no name
+                            var newParam = dbCmd.CreateParameter();
+                            newParam.Value = param.Value;
+                            newParam.DbType = param.DbType;
+                            newParam.ParameterName = string.Empty;
+                            orderedParams.Add(newParam);
+                            break;
+                        }
+                    }
+                }
+
+                // Replace parameters with ordered list
+                dbCmd.Parameters.Clear();
+                foreach (var param in orderedParams)
+                {
+                    dbCmd.Parameters.Add(param);
+                }
+            }
+
+            // Replace ?Name with ? in SQL
+            dbCmd.CommandText = System.Text.RegularExpressions.Regex.Replace(
+                dbCmd.CommandText, @"\?\w+", "?");
+        };
+    }
+
+    public void Dispose()
+    {
+        // OrmLiteConnectionFactory doesn't implement IDisposable in this version
+    }
+
+    [Fact]
+    public void Can_Create_Connection()
+    {
+        using var db = _dbFactory.Open();
+        Assert.NotNull(db);
+    }
+
+    [Fact]
+    public void Can_Create_Table_With_Basic_Types()
+    {
+        using var db = _dbFactory.Open();
+
+        db.CreateTable<BasicTypeTest>();
+
+        var tableExists = db.TableExists<BasicTypeTest>();
+        Assert.True(tableExists);
+    }
+
+    [Fact]
+    public void Can_Insert_And_Select_Basic_Types()
+    {
+        using var db = _dbFactory.Open();
+
+        db.CreateTable<BasicTypeTest>(overwrite: true);
+
+        var entity = new BasicTypeTest
+        {
+            Name = "Test",
+            Age = 25,
+            IsActive = true,
+            Balance = 100.50m,
+            Height = 5.9f,
+            Weight = 180.5,
+            CreatedAt = DateTime.UtcNow,
+            UserId = Guid.NewGuid()
+        };
+
+        db.Insert(entity);
+
+        var retrieved = db.SingleById<BasicTypeTest>(entity.Id);
+
+        Assert.NotNull(retrieved);
+        Assert.Equal(entity.Name, retrieved.Name);
+        Assert.Equal(entity.Age, retrieved.Age);
+        Assert.Equal(entity.IsActive, retrieved.IsActive);
+        Assert.Equal(entity.Balance, retrieved.Balance);
+        Assert.Equal(entity.Height, retrieved.Height);
+        Assert.Equal(entity.Weight, retrieved.Weight);
+        Assert.Equal(entity.UserId, retrieved.UserId);
+    }
+
+    [Fact]
+    public void Can_Update_Record()
+    {
+        using var db = _dbFactory.Open();
+
+        db.CreateTable<BasicTypeTest>(overwrite: true);
+
+        var entity = new BasicTypeTest { Name = "Original", Age = 25 };
+        db.Insert(entity);
+
+        entity.Name = "Updated";
+        entity.Age = 30;
+        db.Update(entity);
+
+        var retrieved = db.SingleById<BasicTypeTest>(entity.Id);
+
+        Assert.Equal("Updated", retrieved.Name);
+        Assert.Equal(30, retrieved.Age);
+    }
+
+    [Fact]
+    public void Can_Delete_Record()
+    {
+        using var db = _dbFactory.Open();
+
+        db.CreateTable<BasicTypeTest>(overwrite: true);
+
+        var entity = new BasicTypeTest { Name = "ToDelete", Age = 25 };
+        db.Insert(entity);
+
+        db.DeleteById<BasicTypeTest>(entity.Id);
+
+        var retrieved = db.SingleById<BasicTypeTest>(entity.Id);
+        Assert.Null(retrieved);
+    }
+
+    [Fact]
+    public void Can_Query_With_Where_Clause()
+    {
+        using var db = _dbFactory.Open();
+
+        db.CreateTable<BasicTypeTest>(overwrite: true);
+
+        db.Insert(new BasicTypeTest { Name = "John", Age = 25 });
+        db.Insert(new BasicTypeTest { Name = "Jane", Age = 30 });
+        db.Insert(new BasicTypeTest { Name = "Bob", Age = 35 });
+
+        var results = db.Select<BasicTypeTest>(x => x.Age > 25);
+
+        Assert.Equal(2, results.Count);
+        Assert.All(results, r => Assert.True(r.Age > 25));
+    }
+
+    [Fact]
+    public void Can_Use_Parameterized_Query()
+    {
+        using var db = _dbFactory.Open();
+
+        db.CreateTable<BasicTypeTest>(overwrite: true);
+
+        db.Insert(new BasicTypeTest { Name = "John", Age = 25 });
+        db.Insert(new BasicTypeTest { Name = "Jane", Age = 30 });
+
+        var results = db.Select<BasicTypeTest>("Age > $1", 25);
+
+        Assert.Single(results);
+        Assert.Equal("Jane", results[0].Name);
+    }
+
+    [Fact]
+    public void Can_Handle_Guid_Type()
+    {
+        using var db = _dbFactory.Open();
+
+        db.CreateTable<BasicTypeTest>(overwrite: true);
+
+        var guid = Guid.NewGuid();
+        var entity = new BasicTypeTest { Name = "Test", UserId = guid };
+
+        db.Insert(entity);
+
+        var retrieved = db.Single<BasicTypeTest>(x => x.UserId == guid);
+
+        Assert.NotNull(retrieved);
+        Assert.Equal(guid, retrieved.UserId);
+    }
+
+    [Fact]
+    public void Can_Handle_DateTime_Type()
+    {
+        using var db = _dbFactory.Open();
+
+        db.CreateTable<BasicTypeTest>(overwrite: true);
+
+        var now = DateTime.UtcNow;
+        var entity = new BasicTypeTest { Name = "Test", CreatedAt = now };
+
+        db.Insert(entity);
+
+        var retrieved = db.SingleById<BasicTypeTest>(entity.Id);
+
+        Assert.NotNull(retrieved);
+        // Allow small difference due to precision
+        Assert.True(Math.Abs((retrieved.CreatedAt - now).TotalSeconds) < 1);
+    }
+
+    [Fact]
+    public void Can_Handle_Decimal_Type()
+    {
+        using var db = _dbFactory.Open();
+
+        db.CreateTable<BasicTypeTest>(overwrite: true);
+
+        var entity = new BasicTypeTest { Name = "Test", Balance = 12345.678901m };
+
+        db.Insert(entity);
+
+        var retrieved = db.SingleById<BasicTypeTest>(entity.Id);
+
+        Assert.NotNull(retrieved);
+        Assert.Equal(entity.Balance, retrieved.Balance);
+    }
+
+    [Fact]
+    public void Can_Handle_ByteArray_Type()
+    {
+        using var db = _dbFactory.Open();
+
+        db.CreateTable<BlobTest>(overwrite: true);
+
+        var data = new byte[] { 1, 2, 3, 4, 5 };
+        var entity = new BlobTest { Name = "Test", Data = data };
+
+        db.Insert(entity);
+
+        var retrieved = db.SingleById<BlobTest>(entity.Id);
+
+        Assert.NotNull(retrieved);
+        Assert.Equal(data, retrieved.Data);
+    }
+
+    [Fact]
+    public void Can_Use_OrderBy()
+    {
+        using var db = _dbFactory.Open();
+
+        db.CreateTable<BasicTypeTest>(overwrite: true);
+
+        db.Insert(new BasicTypeTest { Name = "Charlie", Age = 30 });
+        db.Insert(new BasicTypeTest { Name = "Alice", Age = 25 });
+        db.Insert(new BasicTypeTest { Name = "Bob", Age = 35 });
+
+        var results = db.Select(db.From<BasicTypeTest>().OrderBy(x => x.Name));
+
+        Assert.Equal(3, results.Count);
+        Assert.Equal("Alice", results[0].Name);
+        Assert.Equal("Bob", results[1].Name);
+        Assert.Equal("Charlie", results[2].Name);
+    }
+
+    [Fact]
+    public void Can_Use_Limit_And_Offset()
+    {
+        using var db = _dbFactory.Open();
+
+        db.CreateTable<BasicTypeTest>(overwrite: true);
+
+        for (int i = 1; i <= 10; i++)
+        {
+            db.Insert(new BasicTypeTest { Name = $"User{i}", Age = i });
+        }
+
+        var results = db.Select(db.From<BasicTypeTest>().OrderBy(x => x.Age).Limit(5).Skip(3));
+
+        Assert.Equal(5, results.Count);
+        Assert.Equal("User4", results[0].Name);
+        Assert.Equal("User8", results[4].Name);
+    }
+
+    [Fact]
+    public void Can_Count_Records()
+    {
+        using var db = _dbFactory.Open();
+
+        db.CreateTable<BasicTypeTest>(overwrite: true);
+
+        db.Insert(new BasicTypeTest { Name = "User1", Age = 25 });
+        db.Insert(new BasicTypeTest { Name = "User2", Age = 30 });
+        db.Insert(new BasicTypeTest { Name = "User3", Age = 35 });
+
+        var count = db.Count<BasicTypeTest>(x => x.Age > 25);
+
+        Assert.Equal(2, count);
+    }
+
+    [Fact]
+    public void Can_Handle_All_Integer_Types()
+    {
+        using var db = _dbFactory.Open();
+
+        db.CreateTable<IntegerTypeTest>(overwrite: true);
+
+        var entity = new IntegerTypeTest
+        {
+            TinyInt = 127,
+            UTinyInt = 255,
+            SmallInt = 32767,
+            USmallInt = 65535,
+            Integer = 2147483647,
+            UInteger = 4294967295,
+            BigInt = 9223372036854775807L,
+            UBigInt = 18446744073709551615UL
+        };
+
+        db.Insert(entity);
+
+        var retrieved = db.SingleById<IntegerTypeTest>(entity.Id);
+
+        Assert.NotNull(retrieved);
+        Assert.Equal(entity.TinyInt, retrieved.TinyInt);
+        Assert.Equal(entity.UTinyInt, retrieved.UTinyInt);
+        Assert.Equal(entity.SmallInt, retrieved.SmallInt);
+        Assert.Equal(entity.USmallInt, retrieved.USmallInt);
+        Assert.Equal(entity.Integer, retrieved.Integer);
+        Assert.Equal(entity.UInteger, retrieved.UInteger);
+        Assert.Equal(entity.BigInt, retrieved.BigInt);
+        Assert.Equal(entity.UBigInt, retrieved.UBigInt);
+    }
+
+    [Fact]
+    public void Can_Check_Table_Exists()
+    {
+        using var db = _dbFactory.Open();
+
+        db.DropTable<BasicTypeTest>();
+        Assert.False(db.TableExists<BasicTypeTest>());
+
+        db.CreateTable<BasicTypeTest>();
+        Assert.True(db.TableExists<BasicTypeTest>());
+    }
+
+    [Fact]
+    public void Can_Handle_Null_Values()
+    {
+        using var db = _dbFactory.Open();
+
+        db.CreateTable<NullableTest>(overwrite: true);
+
+        var entity = new NullableTest
+        {
+            Name = "Test",
+            Age = null,
+            IsActive = null,
+            CreatedAt = null
+        };
+
+        db.Insert(entity);
+
+        var retrieved = db.SingleById<NullableTest>(entity.Id);
+
+        Assert.NotNull(retrieved);
+        Assert.Null(retrieved.Age);
+        Assert.Null(retrieved.IsActive);
+        Assert.Null(retrieved.CreatedAt);
+    }
+
+    [Fact]
+    public void Can_Use_Complex_Where_Expression()
+    {
+        using var db = _dbFactory.Open();
+
+        db.CreateTable<BasicTypeTest>(overwrite: true);
+
+        db.Insert(new BasicTypeTest { Name = "John", Age = 25, IsActive = true });
+        db.Insert(new BasicTypeTest { Name = "Jane", Age = 30, IsActive = false });
+        db.Insert(new BasicTypeTest { Name = "Bob", Age = 35, IsActive = true });
+
+        var results = db.Select<BasicTypeTest>(x => x.Age > 25 && x.IsActive);
+
+        Assert.Single(results);
+        Assert.Equal("Bob", results[0].Name);
+    }
+}
+
+// Test Models
+public class BasicTypeTest
+{
+    [AutoIncrement]
+    public int Id { get; set; }
+
+    public string Name { get; set; }
+    public int Age { get; set; }
+    public bool IsActive { get; set; }
+    public decimal Balance { get; set; }
+    public float Height { get; set; }
+    public double Weight { get; set; }
+    public DateTime CreatedAt { get; set; }
+    public Guid UserId { get; set; }
+}
+
+public class BlobTest
+{
+    [AutoIncrement]
+    public int Id { get; set; }
+
+    public string Name { get; set; }
+    public byte[] Data { get; set; }
+}
+
+public class IntegerTypeTest
+{
+    [AutoIncrement]
+    public int Id { get; set; }
+
+    public sbyte TinyInt { get; set; }
+    public byte UTinyInt { get; set; }
+    public short SmallInt { get; set; }
+    public ushort USmallInt { get; set; }
+    public int Integer { get; set; }
+    public uint UInteger { get; set; }
+    public long BigInt { get; set; }
+    public ulong UBigInt { get; set; }
+}
+
+public class NullableTest
+{
+    [AutoIncrement]
+    public int Id { get; set; }
+
+    public string Name { get; set; }
+    public int? Age { get; set; }
+    public bool? IsActive { get; set; }
+    public DateTime? CreatedAt { get; set; }
+}
