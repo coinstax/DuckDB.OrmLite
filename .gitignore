@@ -1,10 +1,6 @@
 # Environment and secrets
 .env
 
-# Local utility scripts (not part of library)
-convert_csv_to_parquet.sh
-README_PARQUET_CONVERSION.md
-
 # Build artifacts
 bin/
 obj/
