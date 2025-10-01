@@ -8,17 +8,17 @@
 
     <!-- Package Information -->
     <PackageId>DuckDB.OrmLite</PackageId>
-    <Version>1.0.1</Version>
+    <Version>1.1.0</Version>
     <Authors>CoinsTax LLC</Authors>
     <Company>CoinsTax LLC</Company>
-    <Description>DuckDB provider for ServiceStack.OrmLite - A fast, simple, and typed ORM for .NET. Enables high-performance analytical queries and data processing with DuckDB's columnar storage engine. Community-maintained, not officially endorsed by ServiceStack.</Description>
-    <PackageTags>DuckDB;OrmLite;ServiceStack;ORM;Database;Analytics;OLAP;DataProcessing</PackageTags>
+    <Description>DuckDB provider for ServiceStack.OrmLite - A fast, simple, and typed ORM for .NET. Enables high-performance analytical queries and data processing with DuckDB's columnar storage engine. Now with async/await support! Community-maintained, not officially endorsed by ServiceStack.</Description>
+    <PackageTags>DuckDB;OrmLite;ServiceStack;ORM;Database;Analytics;OLAP;DataProcessing;Async</PackageTags>
     <PackageProjectUrl>https://github.com/coinstax/DuckDB.OrmLite</PackageProjectUrl>
     <RepositoryUrl>https://github.com/coinstax/DuckDB.OrmLite</RepositoryUrl>
     <RepositoryType>git</RepositoryType>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
     <PackageReadmeFile>README.md</PackageReadmeFile>
-    <PackageReleaseNotes>v1.0.1: CRITICAL FIX - Auto-configure BeforeExecFilter to handle DuckDB parameters correctly. Fixes "Values were not provided" error when using the library.</PackageReleaseNotes>
+    <PackageReleaseNotes>v1.1.0: Added comprehensive async/await support (SelectAsync, InsertAsync, UpdateAsync, DeleteAsync, etc.) - 57 tests, 100% passing. Pseudo-async implementation similar to SQLite, provides API compatibility with other OrmLite providers.</PackageReleaseNotes>
 
     <!-- Build Configuration -->
     <GeneratePackageOnBuild>false</GeneratePackageOnBuild>
