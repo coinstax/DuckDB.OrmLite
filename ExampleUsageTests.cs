@@ -26,12 +26,30 @@ public class ExampleUsageTests : IDisposable
         OrmLiteConfig.BeforeExecFilter = dbCmd =>
         {
             // DuckDB uses 1-based positional parameters ($1, $2), but OrmLite uses 0-based ($0, $1)
+            // Convert SQL: $0 -> $1, $1 -> $2, etc.
             var sql = dbCmd.CommandText;
             for (int i = 9; i >= 0; i--)
             {
                 sql = sql.Replace($"${i}", $"${i + 1}");
             }
             dbCmd.CommandText = sql;
+
+            // Also fix parameter names: $0 -> 1, $1 -> 2, etc.
+            foreach (System.Data.IDbDataParameter param in dbCmd.Parameters)
+            {
+                if (param.ParameterName.StartsWith("$"))
+                {
+                    var nameWithoutPrefix = param.ParameterName.Substring(1);
+                    if (int.TryParse(nameWithoutPrefix, out int index))
+                    {
+                        param.ParameterName = (index + 1).ToString();
+                    }
+                    else
+                    {
+                        param.ParameterName = nameWithoutPrefix;
+                    }
+                }
+            }
         };
     }
 

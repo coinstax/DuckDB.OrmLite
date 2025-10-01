@@ -20,7 +20,7 @@ public class DuckDbOrmLiteTests : IDisposable
         OrmLiteConfig.BeforeExecFilter = dbCmd =>
         {
             // DuckDB uses 1-based positional parameters ($1, $2), but OrmLite uses 0-based ($0, $1)
-            // Convert $0 -> $1, $1 -> $2, etc.
+            // Convert SQL: $0 -> $1, $1 -> $2, etc.
             var sql = dbCmd.CommandText;
             for (int i = 9; i >= 0; i--)  // Process in reverse to avoid double-replacements
             {
@@ -28,7 +28,27 @@ public class DuckDbOrmLiteTests : IDisposable
             }
             dbCmd.CommandText = sql;
 
+            // Also fix parameter names: $0 -> 1, $1 -> 2, etc.
+            foreach (System.Data.IDbDataParameter param in dbCmd.Parameters)
+            {
+                if (param.ParameterName.StartsWith("$"))
+                {
+                    var nameWithoutPrefix = param.ParameterName.Substring(1);
+                    if (int.TryParse(nameWithoutPrefix, out int index))
+                    {
+                        param.ParameterName = (index + 1).ToString();
+                    }
+                    else
+                    {
+                        param.ParameterName = nameWithoutPrefix;
+                    }
+                }
+            }
+
             Console.WriteLine(dbCmd.GetDebugString());
+
+            // Debug: show actual parameter names after conversion
+            Console.WriteLine($"Actual params: {string.Join(", ", dbCmd.Parameters.Cast<System.Data.IDbDataParameter>().Select(p => $"{p.ParameterName}={p.Value}"))}");
         };
     }
 

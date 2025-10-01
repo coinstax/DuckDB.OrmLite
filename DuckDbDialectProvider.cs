@@ -218,6 +218,7 @@ public class DuckDbDialectProvider : OrmLiteDialectProviderBase<DuckDbDialectPro
     public override void InitQueryParam(IDbDataParameter p)
     {
         base.InitQueryParam(p);
+        var originalName = p.ParameterName;
         // DuckDB.NET expects: SQL has $Name, but parameter.ParameterName = "Name" (without $)
         // Also handle positional parameters: $0 -> "1" (DuckDB uses 1-based indexing)
         if (p.ParameterName.StartsWith("$"))
@@ -233,6 +234,7 @@ public class DuckDbDialectProvider : OrmLiteDialectProviderBase<DuckDbDialectPro
                 p.ParameterName = nameWithoutPrefix;
             }
         }
+        Console.WriteLine($"InitQueryParam: {originalName} -> {p.ParameterName}");
     }
 
     public override void SetParameterValues<T>(IDbCommand dbCmd, object obj)
