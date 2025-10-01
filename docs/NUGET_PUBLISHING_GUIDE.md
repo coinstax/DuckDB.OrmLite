@@ -49,11 +49,11 @@ dotnet pack src/DuckDB.OrmLite/DuckDB.OrmLite.csproj -c Release -o nupkg
 ### Method 1: Using dotnet CLI (Recommended)
 
 ```bash
-# Set your API key (one-time setup)
-dotnet nuget add source https://api.nuget.org/v3/index.json -n nuget.org
-
-# Push the package
+# Push the package with your API key
 dotnet nuget push nupkg/DuckDB.OrmLite.1.0.0.nupkg --api-key YOUR_API_KEY --source https://api.nuget.org/v3/index.json
+
+# Or if you saved your API key to a file:
+dotnet nuget push nupkg/DuckDB.OrmLite.1.0.0.nupkg --api-key $(cat nuget-apikey.txt) --source https://api.nuget.org/v3/index.json
 ```
 
 ### Method 2: Using NuGet.org Web Interface
