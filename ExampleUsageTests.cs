@@ -22,41 +22,58 @@ public class ExampleUsageTests : IDisposable
         // Use in-memory database for examples
         _dbFactory = new DuckDbOrmLiteConnectionFactory("Data Source=:memory:");
 
-        // Fix 0-based positional parameters to 1-based for DuckDB
+        // Fix parameters for DuckDB.NET
         OrmLiteConfig.BeforeExecFilter = dbCmd =>
         {
             _output.WriteLine($"[BeforeExecFilter] SQL BEFORE: {dbCmd.CommandText}");
-            _output.WriteLine($"[BeforeExecFilter] Params BEFORE: {string.Join(", ", dbCmd.Parameters.Cast<System.Data.IDbDataParameter>().Select(p => $"{p.ParameterName}={p.Value}"))}");
+            _output.WriteLine($"[BeforeExecFilter] Params BEFORE: {string.Join(", ", dbCmd.Parameters.Cast<System.Data.IDbDataParameter>().Select(p => $"{p.ParameterName}={p.Value} (Type:{p.Value?.GetType().Name}, DbType:{p.DbType})"))}");
 
-            // DuckDB uses 1-based positional parameters ($1, $2), but OrmLite uses 0-based ($0, $1)
-            // Convert SQL: $0 -> $1, $1 -> $2, etc.
             var sql = dbCmd.CommandText;
-            for (int i = 9; i >= 0; i--)
-            {
-                sql = sql.Replace($"${i}", $"${i + 1}");
-            }
-            dbCmd.CommandText = sql;
 
-            // Strip $ from parameter names and convert 0-based positional to 1-based
+            // DuckDB.NET requires explicit type casts for decimal parameters
+            // Also need to convert positional $0, $1 to $1, $2 (1-based)
+            // And strip $ from SQL for named parameters
             foreach (System.Data.IDbDataParameter param in dbCmd.Parameters)
             {
                 if (param.ParameterName.StartsWith("$"))
                 {
+                    var originalName = param.ParameterName;
                     var nameWithoutPrefix = param.ParameterName.Substring(1);
-                    // If it's a numeric positional parameter, convert 0-based to 1-based
+
+                    // Check if it's a positional parameter (numeric name like "0", "1")
                     if (int.TryParse(nameWithoutPrefix, out int index))
                     {
+                        // Positional parameter: $0 -> $1, $1 -> $2 (DuckDB uses 1-based)
+                        var newSqlParam = $"${index + 1}";
+                        sql = sql.Replace(originalName, newSqlParam);
                         param.ParameterName = (index + 1).ToString();
                     }
                     else
                     {
+                        // Named parameter (like $p0, $Id, $Name)
+                        // DuckDB.NET wants parameter names WITHOUT $ prefix, but SQL WITH $ prefix
+                        // So keep $Id in SQL, but parameter name is "Id"
                         param.ParameterName = nameWithoutPrefix;
+                    }
+
+                    // If parameter is decimal, add explicit cast in SQL
+                    if (param.Value is decimal)
+                    {
+                        // For named params, SQL still has $Name format
+                        // For positional, SQL now has $1, $2 format
+                        if (!originalName.Contains("::"))  // Don't double-cast
+                        {
+                            var currentSqlParam = int.TryParse(nameWithoutPrefix, out int idx) ? $"${idx + 1}" : originalName;
+                            sql = sql.Replace(currentSqlParam, $"{currentSqlParam}::DECIMAL(38,12)");
+                        }
                     }
                 }
             }
 
+            dbCmd.CommandText = sql;
+
             _output.WriteLine($"[BeforeExecFilter] SQL AFTER: {dbCmd.CommandText}");
-            _output.WriteLine($"[BeforeExecFilter] Params AFTER: {string.Join(", ", dbCmd.Parameters.Cast<System.Data.IDbDataParameter>().Select(p => $"{p.ParameterName}={p.Value}"))}");
+            _output.WriteLine($"[BeforeExecFilter] Params AFTER: {string.Join(", ", dbCmd.Parameters.Cast<System.Data.IDbDataParameter>().Select(p => $"{p.ParameterName}={p.Value} (Type:{p.Value?.GetType().Name}, DbType:{p.DbType})"))}");
         };
     }
 

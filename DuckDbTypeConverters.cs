@@ -82,6 +82,55 @@ public class DuckDbTimeSpanConverter : TimeSpanAsIntConverter
         var timeSpan = (TimeSpan)value;
         return $"INTERVAL '{timeSpan.TotalSeconds} seconds'";
     }
+
+    public override object ToDbValue(Type fieldType, object value)
+    {
+        // DuckDB expects INTERVAL as a formatted string, not ticks
+        if (value is TimeSpan timeSpan)
+        {
+            // Format as "HH:MM:SS" which DuckDB can parse as INTERVAL
+            return timeSpan.ToString(@"hh\:mm\:ss");
+        }
+        return value;
+    }
+
+    public override object FromDbValue(Type fieldType, object value)
+    {
+        // DuckDB returns INTERVAL as different types depending on the data
+        if (value == null || value is DBNull)
+        {
+            return TimeSpan.Zero;
+        }
+
+        // Try to convert to long (microseconds)
+        if (value is long microseconds)
+        {
+            return TimeSpan.FromTicks(microseconds * 10); // Convert microseconds to ticks
+        }
+
+        // If it's an int, convert to long first
+        if (value is int intMicroseconds)
+        {
+            return TimeSpan.FromTicks((long)intMicroseconds * 10);
+        }
+
+        // Try parsing as TimeSpan if it's a string
+        if (value is string str && TimeSpan.TryParse(str, out var timeSpan))
+        {
+            return timeSpan;
+        }
+
+        // Fallback: try to convert to ticks
+        try
+        {
+            var ticks = Convert.ToInt64(value);
+            return TimeSpan.FromTicks(ticks * 10); // Assume microseconds
+        }
+        catch
+        {
+            return TimeSpan.Zero;
+        }
+    }
 }
 
 public class DuckDbBoolConverter : BoolConverter
@@ -118,6 +167,22 @@ public class DuckDbByteArrayConverter : ByteArrayConverter
     public override string ColumnDefinition => "BLOB";
 
     public override DbType DbType => DbType.Binary;
+
+    public override object FromDbValue(Type fieldType, object value)
+    {
+        // DuckDB returns UnmanagedMemoryStream for BLOB data
+        if (value is System.IO.UnmanagedMemoryStream stream)
+        {
+            using (stream)
+            {
+                var buffer = new byte[stream.Length];
+                stream.Read(buffer, 0, buffer.Length);
+                return buffer;
+            }
+        }
+
+        return base.FromDbValue(fieldType, value);
+    }
 }
 
 // Integer type converters
