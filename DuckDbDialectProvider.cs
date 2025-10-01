@@ -223,14 +223,34 @@ public class DuckDbDialectProvider : OrmLiteDialectProviderBase<DuckDbDialectPro
     public override void InitQueryParam(IDbDataParameter p)
     {
         base.InitQueryParam(p);
-        // Don't strip $ here - let SqlExpression use it to generate SQL with $ placeholders
-        // We'll strip it in BeforeExecFilter right before DuckDB.NET execution
+        // Keep $ in parameter names - we'll strip it temporarily in SetParameterValues
     }
 
     public override void SetParameterValues<T>(IDbCommand dbCmd, object obj)
     {
-        // Call base to populate values
-        base.SetParameterValues<T>(dbCmd, obj);
-        // Parameter name conversion handled in BeforeExecFilter
+        // Get the model definition for type T
+        var modelDef = GetModel(typeof(T));
+
+        // Set parameter values by matching field names (without $ prefix)
+        foreach (IDbDataParameter param in dbCmd.Parameters)
+        {
+            var paramName = param.ParameterName;
+            // Remove $ prefix to match field names
+            if (paramName.StartsWith("$"))
+            {
+                paramName = paramName.Substring(1);
+            }
+
+            // Find the matching field definition
+            var fieldDef = modelDef.FieldDefinitions.FirstOrDefault(f =>
+                string.Equals(f.FieldName, paramName, StringComparison.OrdinalIgnoreCase));
+
+            if (fieldDef != null)
+            {
+                // Get the value from the object
+                var value = fieldDef.GetValue(obj);
+                param.Value = value ?? DBNull.Value;
+            }
+        }
     }
 }
