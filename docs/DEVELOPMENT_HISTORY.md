@@ -2,7 +2,7 @@
 
 ## Overview
 
-This document chronicles the development journey of ServiceStack.OrmLite.DuckDb from initial exploration to production-ready package.
+This document chronicles the development journey of DuckDB.OrmLite from initial exploration to production-ready package.
 
 **Timeline**: September 30 - October 1, 2025 (3 days)
 **Final Status**: 38/40 tests passing (95%), production-ready
@@ -166,12 +166,12 @@ public override IDbDataParameter AddParam(object value)
 
 **Professional Structure:**
 ```
-├── src/ServiceStack.OrmLite.DuckDb/       # Main library
-├── tests/ServiceStack.OrmLite.DuckDb.Tests/  # Test suite
+├── src/DuckDB.OrmLite/       # Main library
+├── tests/DuckDB.OrmLite.Tests/  # Test suite
 ├── docs/                                   # Documentation
 ├── LICENSE.md                              # MIT License
 ├── README.md                               # Public docs
-└── ServiceStack.OrmLite.DuckDb.sln        # Solution
+└── DuckDB.OrmLite.sln        # Solution
 ```
 
 **NuGet Package Configuration:**
@@ -181,7 +181,7 @@ public override IDbDataParameter AddParam(object value)
 - Proper dependencies declared
 
 **GitHub Publication:**
-- Repository: https://github.com/coinstax/ServiceStack.OrmLite.DuckDb
+- Repository: https://github.com/coinstax/DuckDB.OrmLite
 - Branch: `main`
 - All commits pushed successfully
 

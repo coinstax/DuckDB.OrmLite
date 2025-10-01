@@ -1,9 +1,13 @@
-# ServiceStack.OrmLite.DuckDb
+# DuckDB.OrmLite
 
 DuckDB provider for [ServiceStack.OrmLite](https://github.com/ServiceStack/ServiceStack.OrmLite) - A fast, simple, and typed ORM for .NET.
 
-[![NuGet](https://img.shields.io/nuget/v/ServiceStack.OrmLite.DuckDb.svg)](https://www.nuget.org/packages/ServiceStack.OrmLite.DuckDb/)
+[![NuGet](https://img.shields.io/nuget/v/DuckDB.OrmLite.svg)](https://www.nuget.org/packages/DuckDB.OrmLite/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE.md)
+
+## Disclaimer
+
+**This is an independent, community-maintained provider for ServiceStack.OrmLite. It is not officially maintained or endorsed by ServiceStack.**
 
 ## About
 
@@ -42,14 +46,14 @@ This package enables ServiceStack.OrmLite to work with [DuckDB](https://duckdb.o
 ## Installation
 
 ```bash
-dotnet add package ServiceStack.OrmLite.DuckDb
+dotnet add package DuckDB.OrmLite
 ```
 
 ## Quick Start
 
 ```csharp
 using ServiceStack.OrmLite;
-using ServiceStack.OrmLite.DuckDb;
+using DuckDB.OrmLite;
 
 // Create connection factory
 var dbFactory = new DuckDbOrmLiteConnectionFactory("Data Source=myapp.db");
@@ -240,6 +244,6 @@ This project is licensed under the MIT License - see the [LICENSE.md](LICENSE.md
 
 ## Support
 
-- **Issues**: [GitHub Issues](https://github.com/coinstax/ServiceStack.OrmLite.DuckDb/issues)
+- **Issues**: [GitHub Issues](https://github.com/coinstax/DuckDB.OrmLite/issues)
 - **ServiceStack OrmLite**: [ServiceStack Support](https://servicestack.net/support)
 - **DuckDB**: [DuckDB Discord](https://discord.duckdb.org/)

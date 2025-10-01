@@ -2,7 +2,7 @@ using System;
 using System.Collections.Generic;
 using ServiceStack.DataAnnotations;
 using ServiceStack.OrmLite;
-using ServiceStack.OrmLite.DuckDb;
+using DuckDB.OrmLite;
 using Xunit;
 using Xunit.Abstractions;
 

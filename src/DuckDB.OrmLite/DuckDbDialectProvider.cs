@@ -7,7 +7,7 @@ using System.Text;
 using ServiceStack.OrmLite;
 using ServiceStack.OrmLite.Converters;
 
-namespace ServiceStack.OrmLite.DuckDb;
+namespace DuckDB.OrmLite;
 
 public class DuckDbDialectProvider : OrmLiteDialectProviderBase<DuckDbDialectProvider>
 {

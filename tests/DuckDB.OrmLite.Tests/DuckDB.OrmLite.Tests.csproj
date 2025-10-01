@@ -18,7 +18,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\..\src\ServiceStack.OrmLite.DuckDb\ServiceStack.OrmLite.DuckDb.csproj" />
+    <ProjectReference Include="..\..\src\DuckDB.OrmLite\DuckDB.OrmLite.csproj" />
   </ItemGroup>
 
   <ItemGroup>

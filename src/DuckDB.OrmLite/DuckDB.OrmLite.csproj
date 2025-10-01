@@ -7,14 +7,14 @@
     <LangVersion>latest</LangVersion>
 
     <!-- Package Information -->
-    <PackageId>ServiceStack.OrmLite.DuckDb</PackageId>
+    <PackageId>DuckDB.OrmLite</PackageId>
     <Version>1.0.0</Version>
-    <Authors>Colin Mackie</Authors>
-    <Company>Colin Mackie</Company>
-    <Description>DuckDB provider for ServiceStack.OrmLite - A fast, simple, and typed ORM for .NET. Enables high-performance analytical queries and data processing with DuckDB's columnar storage engine.</Description>
-    <PackageTags>ServiceStack;OrmLite;DuckDB;ORM;Database;Analytics;OLAP;DataProcessing</PackageTags>
-    <PackageProjectUrl>https://github.com/coinstax/ServiceStack.OrmLite.DuckDb</PackageProjectUrl>
-    <RepositoryUrl>https://github.com/coinstax/ServiceStack.OrmLite.DuckDb</RepositoryUrl>
+    <Authors>CoinsTax LLC</Authors>
+    <Company>CoinsTax LLC</Company>
+    <Description>DuckDB provider for ServiceStack.OrmLite - A fast, simple, and typed ORM for .NET. Enables high-performance analytical queries and data processing with DuckDB's columnar storage engine. Community-maintained, not officially endorsed by ServiceStack.</Description>
+    <PackageTags>DuckDB;OrmLite;ServiceStack;ORM;Database;Analytics;OLAP;DataProcessing</PackageTags>
+    <PackageProjectUrl>https://github.com/coinstax/DuckDB.OrmLite</PackageProjectUrl>
+    <RepositoryUrl>https://github.com/coinstax/DuckDB.OrmLite</RepositoryUrl>
     <RepositoryType>git</RepositoryType>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
     <PackageReadmeFile>README.md</PackageReadmeFile>

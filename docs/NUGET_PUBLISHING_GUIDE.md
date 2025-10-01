@@ -6,7 +6,7 @@
 2. **API Key**: Generate an API key from your NuGet account settings
    - Go to https://www.nuget.org/account/apikeys
    - Click "Create"
-   - Give it a name (e.g., "ServiceStack.OrmLite.DuckDb")
+   - Give it a name (e.g., "DuckDB.OrmLite")
    - Select scopes (Push new packages and package versions)
    - Select packages (All or specific patterns)
    - Click "Create"
@@ -14,17 +14,17 @@
 
 ## Package Configuration
 
-The package is configured in `src/ServiceStack.OrmLite.DuckDb/ServiceStack.OrmLite.DuckDb.csproj`:
+The package is configured in `src/DuckDB.OrmLite/DuckDB.OrmLite.csproj`:
 
 ```xml
 <PropertyGroup>
-  <PackageId>ServiceStack.OrmLite.DuckDb</PackageId>
+  <PackageId>DuckDB.OrmLite</PackageId>
   <Version>1.0.0</Version>
   <Authors>Colin Mackie</Authors>
   <Description>DuckDB provider for ServiceStack.OrmLite...</Description>
   <PackageTags>ServiceStack;OrmLite;DuckDB;ORM;Database;Analytics;OLAP;DataProcessing</PackageTags>
-  <PackageProjectUrl>https://github.com/cdmackie/ServiceStack.OrmLite.DuckDb</PackageProjectUrl>
-  <RepositoryUrl>https://github.com/cdmackie/ServiceStack.OrmLite.DuckDb</RepositoryUrl>
+  <PackageProjectUrl>https://github.com/coinstax/DuckDB.OrmLite</PackageProjectUrl>
+  <RepositoryUrl>https://github.com/coinstax/DuckDB.OrmLite</RepositoryUrl>
   <PackageLicenseExpression>MIT</PackageLicenseExpression>
   <PackageReadmeFile>README.md</PackageReadmeFile>
 </PropertyGroup>
@@ -37,9 +37,9 @@ The package is configured in `src/ServiceStack.OrmLite.DuckDb/ServiceStack.OrmLi
 dotnet build -c Release
 
 # Create the NuGet package
-dotnet pack src/ServiceStack.OrmLite.DuckDb/ServiceStack.OrmLite.DuckDb.csproj -c Release -o nupkg
+dotnet pack src/DuckDB.OrmLite/DuckDB.OrmLite.csproj -c Release -o nupkg
 
-# The package will be created at: nupkg/ServiceStack.OrmLite.DuckDb.1.0.0.nupkg
+# The package will be created at: nupkg/DuckDB.OrmLite.1.0.0.nupkg
 ```
 
 ## Publishing to NuGet
@@ -51,7 +51,7 @@ dotnet pack src/ServiceStack.OrmLite.DuckDb/ServiceStack.OrmLite.DuckDb.csproj -
 dotnet nuget add source https://api.nuget.org/v3/index.json -n nuget.org
 
 # Push the package
-dotnet nuget push nupkg/ServiceStack.OrmLite.DuckDb.1.0.0.nupkg --api-key YOUR_API_KEY --source https://api.nuget.org/v3/index.json
+dotnet nuget push nupkg/DuckDB.OrmLite.1.0.0.nupkg --api-key YOUR_API_KEY --source https://api.nuget.org/v3/index.json
 ```
 
 ### Method 2: Using NuGet.org Web Interface
@@ -93,12 +93,12 @@ Before publishing, verify the package contents:
 dotnet tool install -g NuGetPackageExplorer
 
 # Or use unzip to inspect
-unzip -l nupkg/ServiceStack.OrmLite.DuckDb.1.0.0.nupkg
+unzip -l nupkg/DuckDB.OrmLite.1.0.0.nupkg
 ```
 
 Check that it includes:
-- ✅ `lib/net8.0/ServiceStack.OrmLite.DuckDb.dll`
-- ✅ `lib/net8.0/ServiceStack.OrmLite.DuckDb.xml` (documentation)
+- ✅ `lib/net8.0/DuckDB.OrmLite.dll`
+- ✅ `lib/net8.0/DuckDB.OrmLite.xml` (documentation)
 - ✅ `README.md`
 - ✅ Dependencies (ServiceStack.OrmLite, DuckDB.NET.Data.Full)
 
@@ -109,7 +109,7 @@ Check that it includes:
    ```bash
    dotnet new console -n TestInstall
    cd TestInstall
-   dotnet add package ServiceStack.OrmLite.DuckDb
+   dotnet add package DuckDB.OrmLite
    ```
 3. **Check package page**: Verify the README and metadata display correctly
 

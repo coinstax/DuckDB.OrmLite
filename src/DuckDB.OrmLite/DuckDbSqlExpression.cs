@@ -3,7 +3,7 @@ using System.Collections.Generic;
 using System.Data;
 using ServiceStack.OrmLite;
 
-namespace ServiceStack.OrmLite.DuckDb;
+namespace DuckDB.OrmLite;
 
 /// <summary>
 /// DuckDB-specific SQL expression builder for LINQ queries

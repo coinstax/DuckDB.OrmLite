@@ -1,4 +1,4 @@
-# ServiceStack.OrmLite.DuckDb - Project Summary
+# DuckDB.OrmLite - Project Summary
 
 ## Overview
 
@@ -53,21 +53,21 @@ A fully functional DuckDB provider for ServiceStack.OrmLite, enabling .NET devel
 ## Repository Structure
 
 ```
-ServiceStack.OrmLite.DuckDb/
+DuckDB.OrmLite/
 ├── src/
-│   └── ServiceStack.OrmLite.DuckDb/           # Main library (4 files)
+│   └── DuckDB.OrmLite/           # Main library (4 files)
 │       ├── DuckDbDialectProvider.cs           # Core provider implementation
 │       ├── DuckDbSqlExpression.cs             # LINQ query support
 │       ├── DuckDbTypeConverters.cs            # Type conversion logic
 │       ├── DuckDbOrmLiteConnectionFactory.cs  # Factory class
-│       └── ServiceStack.OrmLite.DuckDb.csproj # Package configuration
+│       └── DuckDB.OrmLite.csproj # Package configuration
 ├── tests/
-│   └── ServiceStack.OrmLite.DuckDb.Tests/     # Test suite (4 test classes)
+│   └── DuckDB.OrmLite.Tests/     # Test suite (4 test classes)
 │       ├── DuckDbOrmLiteTests.cs              # Core functionality tests (17 tests)
 │       ├── ExampleUsageTests.cs               # Integration tests (8 tests)
 │       ├── AdvancedFeatureTests.cs            # Advanced features (15 tests)
 │       ├── TestFixture.cs                     # Global test configuration
-│       └── ServiceStack.OrmLite.DuckDb.Tests.csproj
+│       └── DuckDB.OrmLite.Tests.csproj
 ├── docs/                                       # Development documentation
 │   ├── IMPLEMENTATION_STATUS.md               # Technical implementation details
 │   ├── TEST_COVERAGE_RECOMMENDATIONS.md       # Test coverage analysis
@@ -75,7 +75,7 @@ ServiceStack.OrmLite.DuckDb/
 │   └── [historical documentation]
 ├── README.md                                   # Public documentation
 ├── LICENSE.md                                  # MIT License
-└── ServiceStack.OrmLite.DuckDb.sln            # Solution file
+└── DuckDB.OrmLite.sln            # Solution file
 ```
 
 ## Test Coverage Breakdown
@@ -165,12 +165,12 @@ Potential improvements:
 ## Getting Started
 
 ### For Users:
-1. Install from NuGet: `dotnet add package ServiceStack.OrmLite.DuckDb`
+1. Install from NuGet: `dotnet add package DuckDB.OrmLite`
 2. See README.md for usage examples
 3. Reference ServiceStack.OrmLite documentation
 
 ### For Contributors:
-1. Clone repository: `git clone https://github.com/coinstax/ServiceStack.OrmLite.DuckDb`
+1. Clone repository: `git clone https://github.com/coinstax/DuckDB.OrmLite`
 2. Build: `dotnet build`
 3. Run tests: `dotnet test`
 4. See CONTRIBUTING.md (to be created) for guidelines
@@ -203,9 +203,9 @@ Built with assistance from Claude (Anthropic), demonstrating effective human-AI 
 
 ## Contact & Support
 
-- **GitHub**: https://github.com/coinstax/ServiceStack.OrmLite.DuckDb
-- **Issues**: https://github.com/coinstax/ServiceStack.OrmLite.DuckDb/issues
-- **NuGet**: https://www.nuget.org/packages/ServiceStack.OrmLite.DuckDb
+- **GitHub**: https://github.com/coinstax/DuckDB.OrmLite
+- **Issues**: https://github.com/coinstax/DuckDB.OrmLite/issues
+- **NuGet**: https://www.nuget.org/packages/DuckDB.OrmLite
 
 ---
 

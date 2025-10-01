@@ -1,7 +1,7 @@
 using System.Data;
 using ServiceStack.OrmLite;
 
-namespace ServiceStack.OrmLite.DuckDb;
+namespace DuckDB.OrmLite;
 
 public static class DuckDbOrmLiteConnectionFactoryExtensions
 {
