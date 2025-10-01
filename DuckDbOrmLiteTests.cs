@@ -7,52 +7,16 @@ using Xunit;
 
 namespace DuckDbOrmLite.Tests;
 
+[Collection("DuckDB Tests")]
 public class DuckDbOrmLiteTests : IDisposable
 {
     private readonly OrmLiteConnectionFactory _dbFactory;
 
-    public DuckDbOrmLiteTests()
+    public DuckDbOrmLiteTests(TestFixture fixture)
     {
         // Use in-memory database for tests
         _dbFactory = new DuckDbOrmLiteConnectionFactory("Data Source=:memory:");
-
-        // Enable SQL logging and fix parameters for DuckDB.NET
-        OrmLiteConfig.BeforeExecFilter = dbCmd =>
-        {
-            var sql = dbCmd.CommandText;
-
-            // Convert positional $0, $1 to $1, $2 (DuckDB uses 1-based indexing)
-            foreach (System.Data.IDbDataParameter param in dbCmd.Parameters)
-            {
-                if (param.ParameterName.StartsWith("$"))
-                {
-                    var originalName = param.ParameterName;
-                    var nameWithoutPrefix = param.ParameterName.Substring(1);
-
-                    // Check if it's a positional parameter (numeric name like "0", "1")
-                    if (int.TryParse(nameWithoutPrefix, out int index))
-                    {
-                        // Positional parameter: $0 -> $1, $1 -> $2 (DuckDB uses 1-based)
-                        var newSqlParam = $"${index + 1}";
-                        sql = sql.Replace(originalName, newSqlParam);
-                        param.ParameterName = (index + 1).ToString();
-                    }
-                    else
-                    {
-                        // Named parameter (like $p0, $Id, $Name)
-                        // Strip $ from parameter name
-                        param.ParameterName = nameWithoutPrefix;
-                    }
-
-                    // REMOVED: Explicit decimal casting - no longer needed in DuckDB 1.3.2
-                    // DuckDB 1.3.2 properly infers decimal types from DbType.Decimal
-                }
-            }
-
-            dbCmd.CommandText = sql;
-
-            Console.WriteLine(dbCmd.GetDebugString());
-        };
+        // BeforeExecFilter is set up globally by TestFixture
     }
 
     public void Dispose()

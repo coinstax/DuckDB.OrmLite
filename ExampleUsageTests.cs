@@ -11,60 +11,18 @@ namespace DuckDbOrmLite.Tests;
 /// <summary>
 /// Integration tests demonstrating real-world usage scenarios
 /// </summary>
+[Collection("DuckDB Tests")]
 public class ExampleUsageTests : IDisposable
 {
     private readonly OrmLiteConnectionFactory _dbFactory;
     private readonly ITestOutputHelper _output;
 
-    public ExampleUsageTests(ITestOutputHelper output)
+    public ExampleUsageTests(ITestOutputHelper output, TestFixture fixture)
     {
         _output = output;
         // Use in-memory database for examples
         _dbFactory = new DuckDbOrmLiteConnectionFactory("Data Source=:memory:");
-
-        // Fix parameters for DuckDB.NET
-        OrmLiteConfig.BeforeExecFilter = dbCmd =>
-        {
-            _output.WriteLine($"[BeforeExecFilter] SQL BEFORE: {dbCmd.CommandText}");
-            _output.WriteLine($"[BeforeExecFilter] Params BEFORE: {string.Join(", ", dbCmd.Parameters.Cast<System.Data.IDbDataParameter>().Select(p => $"{p.ParameterName}={p.Value} (Type:{p.Value?.GetType().Name}, DbType:{p.DbType})"))}");
-
-            var sql = dbCmd.CommandText;
-
-            // Convert positional $0, $1 to $1, $2 (DuckDB uses 1-based indexing)
-            // Strip $ prefix from parameter names for DuckDB.NET
-            foreach (System.Data.IDbDataParameter param in dbCmd.Parameters)
-            {
-                if (param.ParameterName.StartsWith("$"))
-                {
-                    var originalName = param.ParameterName;
-                    var nameWithoutPrefix = param.ParameterName.Substring(1);
-
-                    // Check if it's a positional parameter (numeric name like "0", "1")
-                    if (int.TryParse(nameWithoutPrefix, out int index))
-                    {
-                        // Positional parameter: $0 -> $1, $1 -> $2 (DuckDB uses 1-based)
-                        var newSqlParam = $"${index + 1}";
-                        sql = sql.Replace(originalName, newSqlParam);
-                        param.ParameterName = (index + 1).ToString();
-                    }
-                    else
-                    {
-                        // Named parameter (like $p0, $Id, $Name)
-                        // DuckDB.NET wants parameter names WITHOUT $ prefix, but SQL WITH $ prefix
-                        // So keep $Id in SQL, but parameter name is "Id"
-                        param.ParameterName = nameWithoutPrefix;
-                    }
-
-                    // REMOVED: Explicit decimal casting - no longer needed in DuckDB 1.3.2
-                    // DuckDB 1.3.2 properly infers decimal types from DbType.Decimal
-                }
-            }
-
-            dbCmd.CommandText = sql;
-
-            _output.WriteLine($"[BeforeExecFilter] SQL AFTER: {dbCmd.CommandText}");
-            _output.WriteLine($"[BeforeExecFilter] Params AFTER: {string.Join(", ", dbCmd.Parameters.Cast<System.Data.IDbDataParameter>().Select(p => $"{p.ParameterName}={p.Value} (Type:{p.Value?.GetType().Name}, DbType:{p.DbType})"))}");
-        };
+        // BeforeExecFilter is set up globally by TestFixture
     }
 
     public void Dispose()
