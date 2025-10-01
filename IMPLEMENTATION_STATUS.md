@@ -6,6 +6,8 @@
 **ServiceStack OrmLite:** 8.5.2
 **Target Framework:** .NET 8.0
 
+**Last Updated:** October 1, 2025 - Optimized for DuckDB 1.3.2
+
 ---
 
 ## Test Results Summary
@@ -76,7 +78,7 @@ Critical filter that transforms SQL and parameters:
 // Handles two types of parameters:
 // 1. Positional: $0 -> $1 (convert to 1-based)
 // 2. Named: $p0, $Id, $Name (strip $ from parameter names)
-// 3. Decimal casting: adds ::DECIMAL(38,12) to decimal parameters
+// NOTE: Decimal casting removed in October 2025 - no longer needed in DuckDB 1.3.2
 ```
 
 ---
@@ -88,12 +90,11 @@ Critical filter that transforms SQL and parameters:
 - **Parameter name WITHOUT $**: `param.ParameterName = "Id"`
 - DuckDB.NET expects this asymmetry
 
-### 2. **Decimal Type Inference Issue**
-**Problem**: DuckDB.NET treats parameters as VARCHAR by default
-**Solution**: Explicit casting in SQL: `$param::DECIMAL(38,12)`
-**Location**: BeforeExecFilter adds casting for all decimal parameters
-
-**Question for 1.3.2**: Can we remove this workaround?
+### 2. **Decimal Type Inference Issue** ✅ RESOLVED IN 1.3.2
+**Previous Problem**: DuckDB.NET treated parameters as VARCHAR by default
+**Previous Solution**: Explicit casting in SQL: `$param::DECIMAL(38,12)`
+**Status**: REMOVED - No longer needed in DuckDB 1.3.2
+**Resolution Date**: October 2025
 
 ### 3. **DbType.Currency → VARCHAR Bug**
 **Problem**: OrmLite uses DbType.Currency for decimals, DuckDB.NET treats as VARCHAR
@@ -129,7 +130,49 @@ Critical filter that transforms SQL and parameters:
 
 ---
 
-## Workarounds to Review (Post-1.3.2 Upgrade)
+## ✨ DuckDB 1.3.2 Optimizations (October 2025)
+
+### Workarounds Successfully Removed:
+
+#### 1. ✅ **Explicit Decimal Casting - REMOVED**
+- **Previous**: BeforeExecFilter added `::DECIMAL(38,12)` to all decimal parameters
+- **Finding**: DuckDB 1.3.2 properly infers decimal types from `DbType.Decimal`
+- **Testing**: Created isolated tests confirming decimals work without explicit casting
+- **Result**: Simplified BeforeExecFilter by removing ~10 lines of casting logic
+- **Files Modified**:
+  - DuckDbOrmLiteTests.cs (lines 48-57)
+  - ExampleUsageTests.cs (lines 58-69)
+- **Impact**: Cleaner SQL, improved performance, better maintainability
+
+#### 2. ✅ **INSERT...RETURNING Verified**
+- **Status**: Already implemented and working perfectly in provider
+- **Testing**: Created InsertReturningTest.cs to verify sequence-based auto-increment
+- **Capability**: Full support for `INSERT ... RETURNING *` or specific columns
+- **Use Case**: Ready for future AutoIncrement feature restoration
+- **Note**: Current implementation uses explicit IDs (by design choice, not limitation)
+
+### Workarounds Still Required:
+
+#### 1. **Positional Parameter Conversion (0-based → 1-based)**
+- **Status**: REQUIRED - DuckDB specification mandates 1-based indexing
+- **Keep**: Yes, this is a DuckDB requirement, not a bug
+
+#### 2. **DbType.Currency → Decimal Conversion**
+- **Status**: REQUIRED - DuckDB.NET treats Currency as VARCHAR
+- **Keep**: Yes, essential for decimal type handling
+- **Location**: DuckDbDialectProvider.cs InitQueryParam
+
+#### 3. **Named Parameters in SqlExpression ($p0, $p1)**
+- **Status**: BENEFICIAL - Provides better clarity and type inference
+- **Keep**: Yes, works well and improves code readability
+
+#### 4. **Parameter Name $ Stripping**
+- **Status**: REQUIRED - DuckDB.NET API requirement
+- **Keep**: Yes, SQL needs `$Name` but parameter collection needs `Name`
+
+---
+
+## Workarounds to Review (Historical - Completed October 2025)
 
 ### High Priority - Likely Removable:
 

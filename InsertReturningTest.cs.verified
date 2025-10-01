@@ -1,0 +1,86 @@
+using System;
+using ServiceStack.DataAnnotations;
+using ServiceStack.OrmLite;
+using ServiceStack.OrmLite.DuckDb;
+using Xunit;
+
+namespace DuckDbOrmLite.Tests;
+
+/// <summary>
+/// Verification test for INSERT...RETURNING functionality in DuckDB 1.3.2
+/// This demonstrates that INSERT...RETURNING works correctly for future AutoIncrement support
+/// </summary>
+[Collection("Sequential")]  // Run sequentially to avoid filter interference
+public class InsertReturningTest
+{
+    [Fact]
+    public void Verify_Insert_Returning_Works_With_Sequence()
+    {
+        // Save original filter
+        var originalFilter = OrmLiteConfig.BeforeExecFilter;
+
+        // Setup BeforeExecFilter for this test
+        OrmLiteConfig.BeforeExecFilter = dbCmd =>
+        {
+            var sql = dbCmd.CommandText;
+
+            foreach (System.Data.IDbDataParameter param in dbCmd.Parameters)
+            {
+                if (param.ParameterName.StartsWith("$"))
+                {
+                    var nameWithoutPrefix = param.ParameterName.Substring(1);
+                    if (int.TryParse(nameWithoutPrefix, out int index))
+                    {
+                        var newSqlParam = $"${index + 1}";
+                        sql = sql.Replace(param.ParameterName, newSqlParam);
+                        param.ParameterName = (index + 1).ToString();
+                    }
+                    else
+                    {
+                        param.ParameterName = nameWithoutPrefix;
+                    }
+                }
+            }
+
+            dbCmd.CommandText = sql;
+            Console.WriteLine($"SQL: {dbCmd.CommandText}");
+        };
+
+        try
+        {
+            var dbFactory = new DuckDbOrmLiteConnectionFactory("Data Source=:memory:");
+
+            using var db = dbFactory.Open();
+
+            // Create a sequence for auto-incrementing IDs
+            db.ExecuteSql("CREATE SEQUENCE test_seq START 1");
+
+            // Create table with default value from sequence
+            db.ExecuteSql(@"
+                CREATE TABLE test_table (
+                    id INTEGER PRIMARY KEY DEFAULT nextval('test_seq'),
+                    name VARCHAR
+                )
+            ");
+
+            // Test INSERT...RETURNING with explicit RETURNING clause
+            var result = db.SqlScalar<int>("INSERT INTO test_table (name) VALUES ('Test1') RETURNING id");
+            Assert.Equal(1, result);
+
+            // Insert another record
+            result = db.SqlScalar<int>("INSERT INTO test_table (name) VALUES ('Test2') RETURNING id");
+            Assert.Equal(2, result);
+
+            // Verify both records exist
+            var count = db.SqlScalar<int>("SELECT COUNT(*) FROM test_table");
+            Assert.Equal(2, count);
+
+            Console.WriteLine("✅ INSERT...RETURNING works correctly with sequences in DuckDB 1.3.2");
+        }
+        finally
+        {
+            // Restore original filter
+            OrmLiteConfig.BeforeExecFilter = originalFilter;
+        }
+    }
+}

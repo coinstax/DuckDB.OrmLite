@@ -30,9 +30,8 @@ public class ExampleUsageTests : IDisposable
 
             var sql = dbCmd.CommandText;
 
-            // DuckDB.NET requires explicit type casts for decimal parameters
-            // Also need to convert positional $0, $1 to $1, $2 (1-based)
-            // And strip $ from SQL for named parameters
+            // Convert positional $0, $1 to $1, $2 (DuckDB uses 1-based indexing)
+            // Strip $ prefix from parameter names for DuckDB.NET
             foreach (System.Data.IDbDataParameter param in dbCmd.Parameters)
             {
                 if (param.ParameterName.StartsWith("$"))
@@ -56,17 +55,8 @@ public class ExampleUsageTests : IDisposable
                         param.ParameterName = nameWithoutPrefix;
                     }
 
-                    // If parameter is decimal, add explicit cast in SQL
-                    if (param.Value is decimal)
-                    {
-                        // For named params, SQL still has $Name format
-                        // For positional, SQL now has $1, $2 format
-                        if (!originalName.Contains("::"))  // Don't double-cast
-                        {
-                            var currentSqlParam = int.TryParse(nameWithoutPrefix, out int idx) ? $"${idx + 1}" : originalName;
-                            sql = sql.Replace(currentSqlParam, $"{currentSqlParam}::DECIMAL(38,12)");
-                        }
-                    }
+                    // REMOVED: Explicit decimal casting - no longer needed in DuckDB 1.3.2
+                    // DuckDB 1.3.2 properly infers decimal types from DbType.Decimal
                 }
             }
 
