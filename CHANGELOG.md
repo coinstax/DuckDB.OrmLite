@@ -47,6 +47,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - TimeSpan limited to ~24 hours with HH:MM:SS format
 - DuckDB uses single-writer model for concurrent writes
 
+## [1.0.1] - 2025-10-01
+
+### Fixed
+- **CRITICAL**: Auto-configure `BeforeExecFilter` in `DuckDbOrmLiteConnectionFactory`
+  - Fixed "Values were not provided for the following prepared statement parameters" error
+  - The filter is now automatically configured when creating the connection factory
+  - Handles DuckDB's parameter name requirements ($ prefix, 1-based indexing)
+  - Converts `DbType.Currency` to `DbType.Decimal` automatically
+
+This was a critical bug that prevented v1.0.0 from working in real applications. The tests passed because they had a global filter setup, but applications using the library would fail on any parameterized query.
+
 ## [Unreleased]
 
 ### Planned Features
@@ -58,4 +69,5 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+[1.0.1]: https://github.com/coinstax/DuckDB.OrmLite/releases/tag/v1.0.1
 [1.0.0]: https://github.com/coinstax/DuckDB.OrmLite/releases/tag/v1.0.0
