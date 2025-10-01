@@ -16,10 +16,20 @@ public class DuckDbOrmLiteTests : IDisposable
         // Use in-memory database for tests
         _dbFactory = new DuckDbOrmLiteConnectionFactory("Data Source=:memory:");
 
-        // Enable SQL logging
-        // DuckDB.NET supports named parameters with $name syntax natively
-        // No special parameter handling needed!
-        OrmLiteConfig.BeforeExecFilter = dbCmd => Console.WriteLine(dbCmd.GetDebugString());
+        // Enable SQL logging and fix 0-based positional parameters to 1-based for DuckDB
+        OrmLiteConfig.BeforeExecFilter = dbCmd =>
+        {
+            // DuckDB uses 1-based positional parameters ($1, $2), but OrmLite uses 0-based ($0, $1)
+            // Convert $0 -> $1, $1 -> $2, etc.
+            var sql = dbCmd.CommandText;
+            for (int i = 9; i >= 0; i--)  // Process in reverse to avoid double-replacements
+            {
+                sql = sql.Replace($"${i}", $"${i + 1}");
+            }
+            dbCmd.CommandText = sql;
+
+            Console.WriteLine(dbCmd.GetDebugString());
+        };
     }
 
     public void Dispose()
@@ -142,7 +152,7 @@ public class DuckDbOrmLiteTests : IDisposable
         db.Insert(new BasicTypeTest { Id = 1, Name = "John", Age = 25 });
         db.Insert(new BasicTypeTest { Id = 2, Name = "Jane", Age = 30 });
 
-        var results = db.Select<BasicTypeTest>("Age > $1", 25);
+        var results = db.Select<BasicTypeTest>("Age > $age", new { age = 25 });
 
         Assert.Single(results);
         Assert.Equal("Jane", results[0].Name);

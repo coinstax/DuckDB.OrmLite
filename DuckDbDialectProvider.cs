@@ -219,9 +219,19 @@ public class DuckDbDialectProvider : OrmLiteDialectProviderBase<DuckDbDialectPro
     {
         base.InitQueryParam(p);
         // DuckDB.NET expects: SQL has $Name, but parameter.ParameterName = "Name" (without $)
+        // Also handle positional parameters: $0 -> "1" (DuckDB uses 1-based indexing)
         if (p.ParameterName.StartsWith("$"))
         {
-            p.ParameterName = p.ParameterName.Substring(1);
+            var nameWithoutPrefix = p.ParameterName.Substring(1);
+            // If it's a numeric positional parameter, convert from 0-based to 1-based
+            if (int.TryParse(nameWithoutPrefix, out int index))
+            {
+                p.ParameterName = (index + 1).ToString();
+            }
+            else
+            {
+                p.ParameterName = nameWithoutPrefix;
+            }
         }
     }
 
@@ -230,12 +240,25 @@ public class DuckDbDialectProvider : OrmLiteDialectProviderBase<DuckDbDialectPro
         // Call base to populate values
         base.SetParameterValues<T>(dbCmd, obj);
 
-        // After OrmLite is done, strip $ prefix from all parameter names for DuckDB.NET
+        // After OrmLite is done, strip $ prefix from named parameters only
+        // Keep the $ for positional parameters but convert to 1-based
         foreach (IDbDataParameter param in dbCmd.Parameters)
         {
             if (param.ParameterName.StartsWith("$"))
             {
-                param.ParameterName = param.ParameterName.Substring(1);
+                var nameWithoutPrefix = param.ParameterName.Substring(1);
+                // If it's a numeric positional parameter, just strip $ (it's already been converted in SQL)
+                if (int.TryParse(nameWithoutPrefix, out int index))
+                {
+                    // SQL has been rewritten to use 1-based, param names should match
+                    // DuckDB.NET expects parameter name without $ but SQL with $
+                    param.ParameterName = (index + 1).ToString();
+                }
+                else
+                {
+                    // Named parameters: strip $ from parameter name
+                    param.ParameterName = nameWithoutPrefix;
+                }
             }
         }
     }

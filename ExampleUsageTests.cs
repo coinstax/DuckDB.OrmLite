@@ -21,6 +21,18 @@ public class ExampleUsageTests : IDisposable
         _output = output;
         // Use in-memory database for examples
         _dbFactory = new DuckDbOrmLiteConnectionFactory("Data Source=:memory:");
+
+        // Fix 0-based positional parameters to 1-based for DuckDB
+        OrmLiteConfig.BeforeExecFilter = dbCmd =>
+        {
+            // DuckDB uses 1-based positional parameters ($1, $2), but OrmLite uses 0-based ($0, $1)
+            var sql = dbCmd.CommandText;
+            for (int i = 9; i >= 0; i--)
+            {
+                sql = sql.Replace($"${i}", $"${i + 1}");
+            }
+            dbCmd.CommandText = sql;
+        };
     }
 
     public void Dispose()
@@ -40,6 +52,7 @@ public class ExampleUsageTests : IDisposable
         // Insert
         var customer = new Customer
         {
+            Id = 1,
             CustomerId = Guid.NewGuid(),
             Name = "Acme Corporation",
             Email = "contact@acme.com",
@@ -52,7 +65,7 @@ public class ExampleUsageTests : IDisposable
         _output.WriteLine($"✓ Inserted customer: {customer.Name} (ID: {customer.Id})");
 
         // Select by ID
-        var retrieved = db.SingleById<Customer>(customer.Id);
+        var retrieved = db.SingleById<Customer>(1);
         Assert.Equal(customer.Name, retrieved.Name);
         _output.WriteLine($"✓ Retrieved customer: {retrieved.Name}");
 
@@ -62,15 +75,15 @@ public class ExampleUsageTests : IDisposable
         _output.WriteLine($"✓ Updated credit limit to {retrieved.CreditLimit:C}");
 
         // Verify update
-        var updated = db.SingleById<Customer>(customer.Id);
+        var updated = db.SingleById<Customer>(1);
         Assert.Equal(75000.00m, updated.CreditLimit);
 
         // Delete
-        db.DeleteById<Customer>(customer.Id);
+        db.DeleteById<Customer>(1);
         _output.WriteLine("✓ Deleted customer");
 
         // Verify deletion
-        var deleted = db.SingleById<Customer>(customer.Id);
+        var deleted = db.SingleById<Customer>(1);
         Assert.Null(deleted);
         _output.WriteLine("✓ Verified deletion");
     }
@@ -85,11 +98,11 @@ public class ExampleUsageTests : IDisposable
         // Insert sample data
         var products = new List<Product>
         {
-            new() { Name = "Laptop", Category = "Electronics", Price = 1299.99m, Stock = 50 },
-            new() { Name = "Mouse", Category = "Electronics", Price = 29.99m, Stock = 200 },
-            new() { Name = "Desk", Category = "Furniture", Price = 399.99m, Stock = 25 },
-            new() { Name = "Chair", Category = "Furniture", Price = 249.99m, Stock = 40 },
-            new() { Name = "Monitor", Category = "Electronics", Price = 449.99m, Stock = 75 }
+            new() { Id = 1, Name = "Laptop", Category = "Electronics", Price = 1299.99m, Stock = 50 },
+            new() { Id = 2, Name = "Mouse", Category = "Electronics", Price = 29.99m, Stock = 200 },
+            new() { Id = 3, Name = "Desk", Category = "Furniture", Price = 399.99m, Stock = 25 },
+            new() { Id = 4, Name = "Chair", Category = "Furniture", Price = 249.99m, Stock = 40 },
+            new() { Id = 5, Name = "Monitor", Category = "Electronics", Price = 449.99m, Stock = 75 }
         };
 
         db.InsertAll(products);
@@ -132,6 +145,7 @@ public class ExampleUsageTests : IDisposable
         // Create order
         var order = new Order
         {
+            Id = 1,
             OrderNumber = "ORD-2025-001",
             CustomerName = "John Doe",
             OrderDate = DateTime.UtcNow,
@@ -144,15 +158,15 @@ public class ExampleUsageTests : IDisposable
         // Create order items
         var items = new List<OrderItem>
         {
-            new() { OrderId = order.Id, ProductName = "Laptop", Quantity = 1, UnitPrice = 1299.99m },
-            new() { OrderId = order.Id, ProductName = "Mouse", Quantity = 2, UnitPrice = 29.99m }
+            new() { Id = 1, OrderId = 1, ProductName = "Laptop", Quantity = 1, UnitPrice = 1299.99m },
+            new() { Id = 2, OrderId = 1, ProductName = "Mouse", Quantity = 2, UnitPrice = 29.99m }
         };
 
         db.InsertAll(items);
         _output.WriteLine($"✓ Added {items.Count} items to order");
 
         // Calculate and update total
-        var orderItems = db.Select<OrderItem>(oi => oi.OrderId == order.Id);
+        var orderItems = db.Select<OrderItem>(oi => oi.OrderId == 1);
         var total = 0m;
         foreach (var item in orderItems)
         {
@@ -176,9 +190,9 @@ public class ExampleUsageTests : IDisposable
 
         db.InsertAll(new[]
         {
-            new Product { Name = "Item A", Price = 100m, Stock = 50 },
-            new Product { Name = "Item B", Price = 200m, Stock = 30 },
-            new Product { Name = "Item C", Price = 150m, Stock = 40 }
+            new Product { Id = 1, Name = "Item A", Price = 100m, Stock = 50 },
+            new Product { Id = 2, Name = "Item B", Price = 200m, Stock = 30 },
+            new Product { Id = 3, Name = "Item C", Price = 150m, Stock = 40 }
         });
 
         // Using DuckDB parameter syntax - note: parameterized queries work differently
@@ -207,6 +221,7 @@ public class ExampleUsageTests : IDisposable
         {
             customers.Add(new Customer
             {
+                Id = i,
                 CustomerId = Guid.NewGuid(),
                 Name = $"Customer {i}",
                 Email = $"customer{i}@example.com",
@@ -246,6 +261,7 @@ public class ExampleUsageTests : IDisposable
         {
             var customer1 = new Customer
             {
+                Id = 1,
                 CustomerId = Guid.NewGuid(),
                 Name = "Customer A",
                 Email = "a@example.com",
@@ -255,6 +271,7 @@ public class ExampleUsageTests : IDisposable
 
             var customer2 = new Customer
             {
+                Id = 2,
                 CustomerId = Guid.NewGuid(),
                 Name = "Customer B",
                 Email = "b@example.com",
@@ -278,6 +295,7 @@ public class ExampleUsageTests : IDisposable
         {
             var customer3 = new Customer
             {
+                Id = 3,
                 CustomerId = Guid.NewGuid(),
                 Name = "Customer C",
                 Email = "c@example.com",
@@ -310,6 +328,7 @@ public class ExampleUsageTests : IDisposable
 
         var evt = new Event
         {
+            Id = 1,
             EventId = eventId,
             Title = "Tech Conference 2025",
             StartTime = startTime,
@@ -341,7 +360,7 @@ public class ExampleUsageTests : IDisposable
 // Example Models
 public class Customer
 {
-    [AutoIncrement]
+    [PrimaryKey]
     public int Id { get; set; }
 
     [Index]
@@ -363,7 +382,7 @@ public class Customer
 
 public class Product
 {
-    [AutoIncrement]
+    [PrimaryKey]
     public int Id { get; set; }
 
     [Required]
@@ -379,7 +398,7 @@ public class Product
 
 public class Order
 {
-    [AutoIncrement]
+    [PrimaryKey]
     public int Id { get; set; }
 
     [Index]
@@ -394,7 +413,7 @@ public class Order
 
 public class OrderItem
 {
-    [AutoIncrement]
+    [PrimaryKey]
     public int Id { get; set; }
 
     [Index]
@@ -409,7 +428,7 @@ public class OrderItem
 
 public class Event
 {
-    [AutoIncrement]
+    [PrimaryKey]
     public int Id { get; set; }
 
     [Index]
