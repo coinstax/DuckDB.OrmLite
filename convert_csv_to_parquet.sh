@@ -29,36 +29,47 @@ echo "Reading all CSV files and partitioning by year..."
 # Use DuckDB to read all CSVs and partition by year
 duckdb "$TEMP_DB" <<EOF
 -- Read all CSV files matching the pattern
+-- Match FiatPrice table schema exactly
 CREATE TABLE temp_data AS
-SELECT * FROM read_csv_auto('$CSV_PATTERN',
-    auto_detect=true,
-    header=true
+SELECT
+    column0::TIMESTAMP as "Date",
+    column1::VARCHAR as "Symbol",
+    column2::DECIMAL(38,6) as "USD"
+FROM read_csv_auto('$CSV_PATTERN',
+    auto_detect=true
 );
 
 -- Show summary
 SELECT
     COUNT(*) as total_rows,
-    MIN(Date) as earliest_date,
-    MAX(Date) as latest_date,
-    COUNT(DISTINCT Symbol) as unique_symbols
+    MIN("Date") as earliest_date,
+    MAX("Date") as latest_date,
+    COUNT(DISTINCT "Symbol") as unique_symbols
 FROM temp_data;
 
 -- Export to Parquet with year partitioning
-COPY temp_data
+COPY (
+    SELECT
+        "Date",
+        "Symbol",
+        "USD",
+        year("Date"::TIMESTAMP) as year
+    FROM temp_data
+)
 TO '$OUTPUT_DIR' (
     FORMAT PARQUET,
-    PARTITION_BY (year(Date)),
+    PARTITION_BY (year),
     COMPRESSION 'SNAPPY',
     ROW_GROUP_SIZE 100000
 );
 
 -- Show partition summary
 SELECT
-    year(Date) as year,
+    year("Date") as year,
     COUNT(*) as rows,
-    COUNT(DISTINCT Symbol) as symbols
+    COUNT(DISTINCT "Symbol") as symbols
 FROM temp_data
-GROUP BY year(Date)
+GROUP BY year("Date")
 ORDER BY year;
 EOF
 
