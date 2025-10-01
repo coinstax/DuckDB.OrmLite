@@ -11,6 +11,7 @@ TestResults/
 nupkg/
 *.nupkg
 *.snupkg
+nuget-apikey.txt
 
 # DuckDB database files
 *.db
