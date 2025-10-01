@@ -170,7 +170,7 @@ Potential improvements:
 3. Reference ServiceStack.OrmLite documentation
 
 ### For Contributors:
-1. Clone repository: `git clone https://github.com/cdmackie/ServiceStack.OrmLite.DuckDb`
+1. Clone repository: `git clone https://github.com/coinstax/ServiceStack.OrmLite.DuckDb`
 2. Build: `dotnet build`
 3. Run tests: `dotnet test`
 4. See CONTRIBUTING.md (to be created) for guidelines
@@ -203,8 +203,8 @@ Built with assistance from Claude (Anthropic), demonstrating effective human-AI 
 
 ## Contact & Support
 
-- **GitHub**: https://github.com/cdmackie/ServiceStack.OrmLite.DuckDb
-- **Issues**: https://github.com/cdmackie/ServiceStack.OrmLite.DuckDb/issues
+- **GitHub**: https://github.com/coinstax/ServiceStack.OrmLite.DuckDb
+- **Issues**: https://github.com/coinstax/ServiceStack.OrmLite.DuckDb/issues
 - **NuGet**: https://www.nuget.org/packages/ServiceStack.OrmLite.DuckDb
 
 ---

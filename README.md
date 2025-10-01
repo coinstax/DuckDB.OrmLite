@@ -240,10 +240,6 @@ This project is licensed under the MIT License - see the [LICENSE.md](LICENSE.md
 
 ## Support
 
-- **Issues**: [GitHub Issues](https://github.com/cdmackie/ServiceStack.OrmLite.DuckDb/issues)
+- **Issues**: [GitHub Issues](https://github.com/coinstax/ServiceStack.OrmLite.DuckDb/issues)
 - **ServiceStack OrmLite**: [ServiceStack Support](https://servicestack.net/support)
 - **DuckDB**: [DuckDB Discord](https://discord.duckdb.org/)
-
----
-
-**Note**: Replace `cdmackie` with your actual GitHub username in URLs before publishing.

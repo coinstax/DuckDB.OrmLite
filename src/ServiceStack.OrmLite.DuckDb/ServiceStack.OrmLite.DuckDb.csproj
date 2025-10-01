@@ -13,8 +13,8 @@
     <Company>Colin Mackie</Company>
     <Description>DuckDB provider for ServiceStack.OrmLite - A fast, simple, and typed ORM for .NET. Enables high-performance analytical queries and data processing with DuckDB's columnar storage engine.</Description>
     <PackageTags>ServiceStack;OrmLite;DuckDB;ORM;Database;Analytics;OLAP;DataProcessing</PackageTags>
-    <PackageProjectUrl>https://github.com/cdmackie/ServiceStack.OrmLite.DuckDb</PackageProjectUrl>
-    <RepositoryUrl>https://github.com/cdmackie/ServiceStack.OrmLite.DuckDb</RepositoryUrl>
+    <PackageProjectUrl>https://github.com/coinstax/ServiceStack.OrmLite.DuckDb</PackageProjectUrl>
+    <RepositoryUrl>https://github.com/coinstax/ServiceStack.OrmLite.DuckDb</RepositoryUrl>
     <RepositoryType>git</RepositoryType>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
     <PackageReadmeFile>README.md</PackageReadmeFile>
