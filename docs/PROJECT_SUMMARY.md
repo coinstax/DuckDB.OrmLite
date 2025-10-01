@@ -151,10 +151,17 @@ DuckDB excels at:
 ## Future Enhancements
 
 ### Planned for v1.1.0
-1. **Async/Await Support** - Async versions of all operations (CountAsync, SelectAsync, etc.)
-2. **Bulk Operations Optimization** - Use DuckDB's COPY command for massive performance gains
-3. **Direct Parquet/CSV Operations** - Query Parquet/CSV files directly through OrmLite
-4. **Connection Pooling Improvements** - Better handling of DuckDB's single-writer model
+1. **Async/Await Support** - Async versions of all operations (CountAsync, SelectAsync, InsertAsync, etc.)
+
+### Planned for v1.2.0
+2. **Multi-Database Support** - Transparent querying across multiple DuckDB files
+   - Enable time-series data partitioning (by year, month, etc.)
+   - Support staging databases for gap-filling workflows
+   - Zero code changes required for existing applications
+   - Read/write separation for optimal performance
+   - See docs/MULTI_DATABASE_SPEC.md for complete specification
+3. **Bulk Operations Optimization** - Use DuckDB's COPY command for massive performance gains
+4. **Direct Parquet/CSV Operations** - Query Parquet/CSV files directly through OrmLite
 
 ### Under Consideration
 5. **DuckDB-Specific Types (LIST, STRUCT, MAP)** - Native support for complex types

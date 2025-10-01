@@ -1,4 +1,7 @@
+using System;
 using System.Data;
+using System.IO;
+using ServiceStack;
 using ServiceStack.OrmLite;
 using Xunit;
 
@@ -12,6 +15,9 @@ public class TestFixture
 {
     public TestFixture()
     {
+        // Load ServiceStack license from .env file
+        LoadServiceStackLicense();
+
         // Setup BeforeExecFilter once for ALL tests
         OrmLiteConfig.BeforeExecFilter = dbCmd =>
         {
@@ -37,6 +43,47 @@ public class TestFixture
 
             dbCmd.CommandText = sql;
         };
+    }
+
+    private void LoadServiceStackLicense()
+    {
+        try
+        {
+            // Look for .env file in project root (2 levels up from bin/Debug/net8.0)
+            var envPath = Path.Combine(
+                Directory.GetCurrentDirectory(),
+                "..", "..", "..", "..", "..",
+                ".env");
+
+            envPath = Path.GetFullPath(envPath);
+
+            if (File.Exists(envPath))
+            {
+                var lines = File.ReadAllLines(envPath);
+                foreach (var line in lines)
+                {
+                    if (string.IsNullOrWhiteSpace(line) || line.StartsWith("#"))
+                        continue;
+
+                    var parts = line.Split('=', 2);
+                    if (parts.Length == 2 && parts[0].Trim() == "SERVICESTACK_LICENSE")
+                    {
+                        var license = parts[1].Trim();
+                        Licensing.RegisterLicense(license);
+                        Console.WriteLine("ServiceStack license loaded from .env");
+                        return;
+                    }
+                }
+            }
+            else
+            {
+                Console.WriteLine($".env file not found at: {envPath}");
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Warning: Could not load ServiceStack license: {ex.Message}");
+        }
     }
 }
 

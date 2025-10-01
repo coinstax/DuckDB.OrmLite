@@ -22,13 +22,14 @@ This package enables ServiceStack.OrmLite to work with [DuckDB](https://duckdb.o
 ## Features
 
 ✅ **Full OrmLite Support**
-- Complete CRUD operations
+- Complete CRUD operations (sync + async)
 - LINQ query expressions
 - Transactions
 - AutoIncrement with sequences and INSERT...RETURNING
 - Complex queries (JOINs, aggregations, subqueries)
 - Parameterized queries
 - Batch operations
+- Async/await support (pseudo-async)
 
 ✅ **Complete Type Support**
 - All .NET primitive types
@@ -39,7 +40,7 @@ This package enables ServiceStack.OrmLite to work with [DuckDB](https://duckdb.o
 - Nullable types
 
 ✅ **Production Ready**
-- 40 comprehensive tests (95% passing)
+- 57 comprehensive tests (100% passing)
 - Optimized for DuckDB 1.3.2
 - SQL injection prevention
 - Robust error handling
@@ -119,6 +120,56 @@ using (var trans = db.OpenTransaction())
     trans.Commit();
 }
 ```
+
+## Async/Await Support
+
+DuckDB.OrmLite supports async/await for all operations through ServiceStack.OrmLite's built-in async APIs.
+
+**Important**: Since DuckDB.NET.Data does not provide native async I/O operations, these are **pseudo-async** implementations (similar to SQLite). Operations will block the calling thread but provide API compatibility with other OrmLite providers.
+
+### Async Examples
+
+```csharp
+using var db = dbFactory.Open();
+
+// SELECT operations
+var customers = await db.SelectAsync<Customer>(c => c.CreditLimit > 10000);
+var customer = await db.SingleAsync<Customer>(c => c.Id == 1);
+var count = await db.CountAsync<Customer>();
+
+// INSERT operations
+await db.InsertAsync(new Customer { Name = "New Corp", ... });
+await db.InsertAllAsync(customers);
+
+// UPDATE operations
+customer.CreditLimit = 75000;
+await db.UpdateAsync(customer);
+await db.UpdateAllAsync(customers);
+
+// DELETE operations
+await db.DeleteAsync<Customer>(c => c.CreditLimit < 1000);
+await db.DeleteByIdAsync<Customer>(customerId);
+
+// SQL operations
+var results = await db.SqlListAsync<Customer>("SELECT * FROM Customer WHERE CreditLimit > 50000");
+var total = await db.SqlScalarAsync<decimal>("SELECT SUM(CreditLimit) FROM Customer");
+
+// Transactions work with async too
+using (var trans = db.OpenTransaction())
+{
+    await db.InsertAsync(customer);
+    await db.InsertAsync(order);
+    trans.Commit();
+}
+```
+
+### Async Limitations
+
+⚠️ **Not true async I/O**: Operations still block the calling thread internally
+- Suitable for maintaining consistent async/await code style
+- API-compatible with other OrmLite providers
+- Not suitable for high-concurrency scenarios expecting true async I/O benefits
+- Consider using synchronous methods if async benefits are not needed
 
 ## Use Cases
 

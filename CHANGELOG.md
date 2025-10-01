@@ -60,11 +60,35 @@ This was a critical bug that prevented v1.0.0 from working in real applications.
 
 ## [Unreleased]
 
-### Planned for v1.1.0
-- Async/Await support - Async versions of all operations
+## [1.1.0] - 2025-10-01
+
+### Added
+- **Async/Await Support** - Full async API support through ServiceStack.OrmLite
+  - All CRUD operations: SelectAsync, InsertAsync, UpdateAsync, DeleteAsync, SaveAsync
+  - Query operations: SingleAsync, CountAsync, ScalarAsync, ExistsAsync
+  - SQL operations: SqlListAsync, SqlScalarAsync, ExecuteNonQueryAsync
+  - Transaction support with async operations
+  - CancellationToken support throughout
+  - 17 comprehensive async tests (100% passing)
+
+### Technical Notes
+- Async support is **pseudo-async** (similar to SQLite) since DuckDB.NET.Data v1.3.0 doesn't provide native async I/O
+- Operations block the calling thread but provide API compatibility with other OrmLite providers
+- Suitable for maintaining consistent async/await code style across your application
+- See README.md Async/Await Support section for usage examples and limitations
+
+### Improved
+- ServiceStack license now automatically loaded from .env file in tests
+- Test coverage increased to 57 tests (100% passing)
+
+### Planned for v1.2.0
+- Multi-database support - Transparent querying across multiple DuckDB files
+  - Unified view creation for time-series partitioned data
+  - Read/write separation for optimal performance
+  - Zero code changes required for existing applications
+  - See docs/MULTI_DATABASE_SPEC.md for details
 - Bulk operations optimization using DuckDB's COPY command
 - Direct Parquet/CSV operations through OrmLite
-- Connection pooling improvements for better concurrent reads
 
 ### Under Consideration
 - Support for DuckDB-specific types (LIST, STRUCT, MAP)
@@ -77,5 +101,6 @@ This was a critical bug that prevented v1.0.0 from working in real applications.
 
 ---
 
+[1.1.0]: https://github.com/coinstax/DuckDB.OrmLite/releases/tag/v1.1.0
 [1.0.1]: https://github.com/coinstax/DuckDB.OrmLite/releases/tag/v1.0.1
 [1.0.0]: https://github.com/coinstax/DuckDB.OrmLite/releases/tag/v1.0.0
