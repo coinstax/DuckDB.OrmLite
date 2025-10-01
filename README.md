@@ -30,6 +30,7 @@ This package enables ServiceStack.OrmLite to work with [DuckDB](https://duckdb.o
 - Parameterized queries
 - Batch operations
 - Async/await support (pseudo-async)
+- **Multi-database support** - Query across multiple DuckDB files transparently
 
 ✅ **Complete Type Support**
 - All .NET primitive types
@@ -40,7 +41,7 @@ This package enables ServiceStack.OrmLite to work with [DuckDB](https://duckdb.o
 - Nullable types
 
 ✅ **Production Ready**
-- 57 comprehensive tests (100% passing)
+- 75 comprehensive tests (100% passing)
 - Optimized for DuckDB 1.3.2
 - SQL injection prevention
 - Robust error handling
@@ -170,6 +171,131 @@ using (var trans = db.OpenTransaction())
 - API-compatible with other OrmLite providers
 - Not suitable for high-concurrency scenarios expecting true async I/O benefits
 - Consider using synchronous methods if async benefits are not needed
+
+## Multi-Database Support
+
+Query across multiple DuckDB database files transparently - perfect for time-series data, archival scenarios, or partitioned datasets.
+
+### Basic Configuration
+
+```csharp
+var factory = new DuckDbOrmLiteConnectionFactory("Data Source=main.db")
+    .WithAdditionalDatabases("archive_2024.db", "archive_2023.db")
+    .WithMultiDatabaseTables("CmcPrice", "FiatPrice");
+
+// Queries automatically span all databases
+using var db = factory.Open();
+var allPrices = db.Select<CmcPrice>(x => x.Symbol == "BTC");
+// Returns data from main.db, archive_2024.db, and archive_2023.db
+
+// Writes go to main database only
+using var writeDb = factory.OpenForWrite();
+writeDb.Insert(new CmcPrice { Date = DateTime.Today, Symbol = "ETH", Price = 3500 });
+```
+
+### Type-Safe Configuration
+
+```csharp
+var factory = new DuckDbOrmLiteConnectionFactory("Data Source=main.db")
+    .WithAdditionalDatabases("archive.db")
+    .WithMultiDatabaseTable<CmcPrice>();  // Type-safe table configuration
+```
+
+### Use Case: Time-Series Data with Daily Updates
+
+```csharp
+// Setup: Current year + archives
+var factory = new DuckDbOrmLiteConnectionFactory("Data Source=prices_2025.db")
+    .WithAdditionalDatabases("prices_2024.db", "prices_2023.db", "prices_2022.db")
+    .WithMultiDatabaseTables("CmcPrice");
+
+// Read: Query spans all years transparently
+using (var db = factory.Open())
+{
+    // Get Bitcoin prices for last 2 years
+    var btcPrices = db.Select<CmcPrice>(x =>
+        x.Symbol == "BTC" &&
+        x.Date >= DateTime.Today.AddYears(-2));
+
+    // Aggregations work across all databases
+    var avgPrice = db.Scalar<decimal>(
+        db.From<CmcPrice>()
+            .Where(x => x.Symbol == "BTC")
+            .Select(x => Sql.Avg(x.Price))
+    );
+}
+
+// Write: New data goes to current year database
+using (var writeDb = factory.OpenForWrite())
+{
+    writeDb.Insert(new CmcPrice
+    {
+        Date = DateTime.Today,
+        Symbol = "BTC",
+        Price = 95000
+    });
+}
+```
+
+### How It Works
+
+1. **Automatic ATTACH**: Additional databases are attached on connection open
+2. **Unified Views**: Creates `{TableName}_Unified` views with `UNION ALL` across all databases
+3. **Query Routing**: Read queries automatically use unified views; writes go directly to main database
+4. **Zero Code Changes**: Application code using `db.Select<T>()` works unchanged
+
+### Multi-Database Features
+
+✅ **All OrmLite operations work across databases:**
+- SELECT with WHERE, ORDER BY, LIMIT
+- Aggregations (COUNT, SUM, AVG, MAX, MIN)
+- JOINs (multi-db table with single-db table)
+- Complex LINQ expressions
+- Async operations
+
+✅ **Smart table detection:**
+- Only creates views for tables that exist in databases
+- Handles tables existing in subset of databases
+
+✅ **Flexible configuration:**
+- Mix multi-db and single-db tables in same factory
+- Toggle auto-configuration with `.WithAutoConfigureViews(false)`
+
+### Multi-Database Limitations
+
+⚠️ **Important considerations:**
+- **Schema consistency**: Tables must have identical schemas across all databases
+- **No cross-database transactions**: Transactions only work with `OpenForWrite()` (single database)
+- **Read-only archives**: Additional databases should be read-only for data consistency
+- **No automatic deduplication**: `UNION ALL` doesn't deduplicate - ensure partitioning prevents duplicates
+
+### Best Practices
+
+**Recommended partitioning strategies:**
+- Time-based: One database per year/month
+- Categorical: Separate databases by data type or category
+- Archival: Current database + historical archives
+
+**Workflow pattern:**
+```csharp
+// Daily process: Keep current database for writes
+using (var writeDb = factory.OpenForWrite())
+{
+    writeDb.InsertAll(todaysData);
+}
+
+// Analytics: Query across all time periods
+using (var readDb = factory.Open())
+{
+    var historicalTrends = readDb.Select<CmcPrice>(x =>
+        x.Date >= new DateTime(2020, 1, 1));
+}
+
+// Year-end: Rotate current to archive
+// 1. Copy prices_2025.db to archive location
+// 2. Update factory configuration to include new archive
+// 3. Create fresh prices_2026.db for new year
+```
 
 ## Use Cases
 

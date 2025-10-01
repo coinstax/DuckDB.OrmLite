@@ -60,6 +60,57 @@ This was a critical bug that prevented v1.0.0 from working in real applications.
 
 ## [Unreleased]
 
+## [1.2.0] - 2025-10-01
+
+### Added
+- **Multi-Database Support** 🎉 - Query transparently across multiple DuckDB database files
+  - Fluent configuration API: `.WithAdditionalDatabases()` and `.WithMultiDatabaseTables()`
+  - Automatic database attachment via `ATTACH` statement
+  - Unified view creation with `UNION ALL` across all databases
+  - Read/write separation: `Open()` for multi-db reads, `OpenForWrite()` for single-db writes
+  - Smart table detection - only creates views for tables that exist
+  - Database alias sanitization for file paths with special characters
+  - 18 comprehensive multi-database tests (100% passing)
+
+### Use Cases
+- **Time-Series Data**: Partition data by year/month across multiple database files
+- **Archival Scenarios**: Keep current year writable, historical years as read-only archives
+- **Data Lake Queries**: Query across partitioned datasets without application code changes
+- **Performance**: Distribute data across files for better read parallelization
+
+### Technical Details
+- Separate dialect provider instances for multi-db vs single-db connections
+- Automatic view lifecycle management (created on connection open)
+- Table existence checking with fallback for missing tables
+- Works with all OrmLite operations: SELECT, WHERE, ORDER BY, LIMIT, aggregations, JOINs, async
+
+### Improved
+- Test coverage increased to 75 tests (100% passing)
+- Zero breaking changes - fully backward compatible
+
+### Limitations
+- Tables must have identical schemas across all databases
+- Cross-database transactions not supported (use `OpenForWrite()` for transactions)
+- `UNION ALL` doesn't deduplicate - ensure partitioning prevents duplicates
+- Additional databases should be read-only for data consistency
+
+### Example
+```csharp
+var factory = new DuckDbOrmLiteConnectionFactory("Data Source=main.db")
+    .WithAdditionalDatabases("archive_2024.db", "archive_2023.db")
+    .WithMultiDatabaseTables("CmcPrice");
+
+// Queries span all databases automatically
+using var db = factory.Open();
+var prices = db.Select<CmcPrice>(x => x.Symbol == "BTC");
+
+// Writes go to main database only
+using var writeDb = factory.OpenForWrite();
+writeDb.Insert(new CmcPrice { ... });
+```
+
+See README.md Multi-Database Support section for complete documentation.
+
 ## [1.1.0] - 2025-10-01
 
 ### Added
@@ -81,16 +132,9 @@ This was a critical bug that prevented v1.0.0 from working in real applications.
 - ServiceStack license now automatically loaded from .env file in tests
 - Test coverage increased to 57 tests (100% passing)
 
-### Planned for v1.2.0
-- Multi-database support - Transparent querying across multiple DuckDB files
-  - Unified view creation for time-series partitioned data
-  - Read/write separation for optimal performance
-  - Zero code changes required for existing applications
-  - See docs/MULTI_DATABASE_SPEC.md for details
+### Under Consideration
 - Bulk operations optimization using DuckDB's COPY command
 - Direct Parquet/CSV operations through OrmLite
-
-### Under Consideration
 - Support for DuckDB-specific types (LIST, STRUCT, MAP)
 - Window functions support with LINQ extensions
 - DuckDB-specific aggregate functions

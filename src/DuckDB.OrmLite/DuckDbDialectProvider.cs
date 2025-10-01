@@ -13,6 +13,9 @@ public class DuckDbDialectProvider : OrmLiteDialectProviderBase<DuckDbDialectPro
 {
     public static DuckDbDialectProvider Instance = new();
 
+    // Multi-database support
+    private HashSet<string>? _multiDbTables;
+
     public DuckDbDialectProvider()
     {
         base.AutoIncrementDefinition = "";  // DuckDB doesn't use a special AUTO_INCREMENT keyword
@@ -85,7 +88,23 @@ public class DuckDbDialectProvider : OrmLiteDialectProviderBase<DuckDbDialectPro
 
     public override string GetQuotedTableName(ModelDefinition modelDef)
     {
+        // Check if this table is configured for multi-database queries
+        if (_multiDbTables != null && _multiDbTables.Contains(modelDef.ModelName))
+        {
+            // Redirect to the unified view
+            var viewName = $"{modelDef.ModelName}_Unified";
+            return GetQuotedName(viewName);
+        }
+
         return GetQuotedName(NamingStrategy.GetTableName(modelDef.ModelName));
+    }
+
+    /// <summary>
+    /// Internal method to configure which tables use multi-database views
+    /// </summary>
+    internal void SetMultiDatabaseTables(HashSet<string>? multiDbTables)
+    {
+        _multiDbTables = multiDbTables;
     }
 
     public override string GetColumnDefinition(FieldDefinition fieldDef)
