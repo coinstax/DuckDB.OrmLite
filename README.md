@@ -411,6 +411,9 @@ dotnet test --filter "FullyQualifiedName~AdvancedFeatureTests"
 Test coverage:
 - 25 core OrmLite functionality tests
 - 15 advanced feature tests (JOINs, aggregations, edge cases)
+- 17 async/await tests
+- 18 multi-database tests
+- 75 total tests (100% passing)
 - Production-ready error handling and SQL injection prevention
 
 ## Contributing
