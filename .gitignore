@@ -1,3 +1,4 @@
+# Build artifacts
 bin/
 obj/
 *.user
@@ -5,3 +6,23 @@ obj/
 .vs/
 *.cache
 TestResults/
+
+# NuGet packages
+nupkg/
+*.nupkg
+*.snupkg
+
+# DuckDB database files
+*.db
+*.db.wal
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db

@@ -1,0 +1,36 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 17
+VisualStudioVersion = 17.0.31903.59
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "src", "src", "{4C5FF161-B9A0-403A-8F6E-E718133DEABE}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ServiceStack.OrmLite.DuckDb", "src\ServiceStack.OrmLite.DuckDb\ServiceStack.OrmLite.DuckDb.csproj", "{B927237F-F327-4BE7-A9E0-8F38CE2C936E}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "tests", "tests", "{32B22A47-45F8-4C55-B248-8F9E71594D3F}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ServiceStack.OrmLite.DuckDb.Tests", "tests\ServiceStack.OrmLite.DuckDb.Tests\ServiceStack.OrmLite.DuckDb.Tests.csproj", "{BDF2EDA8-51FF-4C4E-B4CF-7134F0686196}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{B927237F-F327-4BE7-A9E0-8F38CE2C936E}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{B927237F-F327-4BE7-A9E0-8F38CE2C936E}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{B927237F-F327-4BE7-A9E0-8F38CE2C936E}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{B927237F-F327-4BE7-A9E0-8F38CE2C936E}.Release|Any CPU.Build.0 = Release|Any CPU
+		{BDF2EDA8-51FF-4C4E-B4CF-7134F0686196}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{BDF2EDA8-51FF-4C4E-B4CF-7134F0686196}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{BDF2EDA8-51FF-4C4E-B4CF-7134F0686196}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{BDF2EDA8-51FF-4C4E-B4CF-7134F0686196}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(NestedProjects) = preSolution
+		{B927237F-F327-4BE7-A9E0-8F38CE2C936E} = {4C5FF161-B9A0-403A-8F6E-E718133DEABE}
+		{BDF2EDA8-51FF-4C4E-B4CF-7134F0686196} = {32B22A47-45F8-4C55-B248-8F9E71594D3F}
+	EndGlobalSection
+EndGlobal
