@@ -66,16 +66,161 @@ dotnet nuget push nupkg/DuckDB.OrmLite.1.0.0.nupkg --api-key $(cat nuget-apikey.
 
 ## Version Management
 
-Update the version number in the `.csproj` file before releasing:
-
-```xml
-<Version>1.0.1</Version>
-```
-
 Follow [Semantic Versioning](https://semver.org/):
 - **Major** (1.0.0 → 2.0.0): Breaking changes
 - **Minor** (1.0.0 → 1.1.0): New features, backward compatible
 - **Patch** (1.0.0 → 1.0.1): Bug fixes, backward compatible
+
+### When to Increment Each Version Component
+
+**MAJOR version** - Increment when making incompatible API changes:
+- Removing public methods/properties
+- Changing method signatures
+- Renaming namespaces or classes
+- Changing behavior that breaks existing code
+
+**MINOR version** - Increment when adding functionality in a backward-compatible manner:
+- Adding new public methods/properties
+- Adding new features
+- Adding optional parameters with defaults
+- Performance improvements (significant)
+
+**PATCH version** - Increment when making backward-compatible bug fixes:
+- Fixing bugs
+- Documentation updates
+- Internal refactoring (no API changes)
+- Minor performance improvements
+
+## Complete Release Workflow
+
+Follow these steps for every new release:
+
+### Step 1: Make Your Changes
+
+Make code changes, fix bugs, or add features on your development branch.
+
+### Step 2: Update Version and Release Notes
+
+Edit `src/DuckDB.OrmLite/DuckDB.OrmLite.csproj`:
+
+```xml
+<PropertyGroup>
+  <Version>1.0.1</Version>
+  <PackageReleaseNotes>v1.0.1: Fixed NULL parameter handling; improved error messages</PackageReleaseNotes>
+</PropertyGroup>
+```
+
+### Step 3: Update CHANGELOG.md
+
+Add entry to `CHANGELOG.md`:
+
+```markdown
+## [1.0.1] - 2025-10-15
+
+### Fixed
+- Fixed NULL parameter handling in complex queries
+- Improved error messages for connection failures
+
+### Changed
+- Updated DuckDB.NET.Data.Full to 1.3.1
+```
+
+### Step 4: Build and Test
+
+```bash
+# Clean previous builds
+dotnet clean
+
+# Build in Release mode
+dotnet build -c Release
+
+# Run all tests
+dotnet test -c Release
+```
+
+### Step 5: Create NuGet Package
+
+```bash
+# Create the package
+dotnet pack src/DuckDB.OrmLite/DuckDB.OrmLite.csproj -c Release -o nupkg
+
+# Verify package contents (optional)
+unzip -l nupkg/DuckDB.OrmLite.1.0.1.nupkg
+```
+
+### Step 6: Publish to NuGet
+
+```bash
+# Push to NuGet
+dotnet nuget push nupkg/DuckDB.OrmLite.1.0.1.nupkg --api-key $(cat nuget-apikey.txt) --source https://api.nuget.org/v3/index.json
+
+# Wait a few minutes for indexing
+```
+
+### Step 7: Commit and Push
+
+```bash
+# Commit version changes
+git add src/DuckDB.OrmLite/DuckDB.OrmLite.csproj CHANGELOG.md
+git commit -m "Release v1.0.1"
+git push
+```
+
+### Step 8: Create Git Tag
+
+```bash
+# Create annotated tag
+git tag -a v1.0.1 -m "Release v1.0.1 - Bug fixes
+
+- Fixed NULL parameter handling
+- Improved error messages"
+
+# Push tag to GitHub
+git push origin v1.0.1
+```
+
+### Step 9: Create GitHub Release
+
+```bash
+# Create GitHub release with notes
+gh release create v1.0.1 \
+  --title "v1.0.1 - Bug Fixes" \
+  --notes "## What's Changed
+
+### Fixed
+- Fixed NULL parameter handling in complex queries
+- Improved error messages for connection failures
+
+### Changed
+- Updated DuckDB.NET.Data.Full to 1.3.1
+
+**Full Changelog**: https://github.com/coinstax/DuckDB.OrmLite/compare/v1.0.0...v1.0.1"
+```
+
+### Step 10: Verify
+
+1. Check NuGet package page: https://www.nuget.org/packages/DuckDB.OrmLite
+2. Check GitHub release page: https://github.com/coinstax/DuckDB.OrmLite/releases
+3. Test installation:
+   ```bash
+   dotnet new console -n TestInstall
+   cd TestInstall
+   dotnet add package DuckDB.OrmLite
+   ```
+
+## Quick Reference: Release Checklist
+
+- [ ] Update version in `.csproj`
+- [ ] Update `PackageReleaseNotes` in `.csproj`
+- [ ] Update `CHANGELOG.md`
+- [ ] Run tests: `dotnet test -c Release`
+- [ ] Create package: `dotnet pack -c Release`
+- [ ] Publish to NuGet: `dotnet nuget push`
+- [ ] Commit changes: `git commit -m "Release vX.Y.Z"`
+- [ ] Create tag: `git tag -a vX.Y.Z`
+- [ ] Push: `git push && git push origin vX.Y.Z`
+- [ ] Create GitHub release: `gh release create`
+- [ ] Verify on NuGet.org and GitHub
 
 ## Pre-release Versions
 
