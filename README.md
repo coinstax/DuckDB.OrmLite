@@ -287,12 +287,19 @@ using var db = factory.Open(TimeSpan.FromSeconds(30));
 
 // Also available for write connections
 using var writeDb = factory.OpenForWrite(TimeSpan.FromSeconds(30));
+
+// Customize retry delays (useful for high-contention scenarios)
+var factory = new DuckDbOrmLiteConnectionFactory("Data Source=myapp.db")
+{
+    RetryDelayMs = 100,      // Start with 100ms delays (default: 50ms)
+    MaxRetryDelayMs = 5000   // Cap at 5 seconds (default: 1000ms)
+};
 ```
 
 **How it works:**
 - Detects lock errors: "Could not set lock", "database is locked", "IO Error"
-- Exponential backoff: 50ms → 100ms → 200ms → ... → 1000ms (max)
-- Random jitter to avoid thundering herd
+- Exponential backoff: starts at `RetryDelayMs`, doubles each retry, caps at `MaxRetryDelayMs`
+- Random jitter (up to 25% of delay) to avoid thundering herd
 - Throws `TimeoutException` if lock not acquired within timeout
 
 **Use cases:**

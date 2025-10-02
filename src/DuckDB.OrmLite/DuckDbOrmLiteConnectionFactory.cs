@@ -101,6 +101,17 @@ public class DuckDbOrmLiteConnectionFactory : OrmLiteConnectionFactory
     private readonly DuckDbDialectProvider _multiDbDialectProvider;
     private readonly DuckDbDialectProvider _singleDbDialectProvider;
 
+    // Retry configuration
+    /// <summary>
+    /// Initial retry delay in milliseconds (default: 50ms)
+    /// </summary>
+    public int RetryDelayMs { get; set; } = 50;
+
+    /// <summary>
+    /// Maximum retry delay in milliseconds (default: 1000ms)
+    /// </summary>
+    public int MaxRetryDelayMs { get; set; } = 1000;
+
     static DuckDbOrmLiteConnectionFactory()
     {
         // Configure filters once when the class is first used
@@ -220,8 +231,8 @@ public class DuckDbOrmLiteConnectionFactory : OrmLiteConnectionFactory
         var providerToUse = shouldConfigureMultiDb ? _multiDbDialectProvider : _singleDbDialectProvider;
 
         var startTime = DateTime.UtcNow;
-        var retryDelayMs = 50; // Start with 50ms
-        var maxRetryDelayMs = 1000; // Cap at 1 second
+        var retryDelayMs = RetryDelayMs;
+        var maxRetryDelayMs = MaxRetryDelayMs;
         Exception? lastException = null;
 
         while (true)
