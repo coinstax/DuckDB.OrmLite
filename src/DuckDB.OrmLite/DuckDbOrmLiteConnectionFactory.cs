@@ -251,9 +251,9 @@ public class DuckDbOrmLiteConnectionFactory : OrmLiteConnectionFactory
 
         foreach (var dbPath in _additionalDatabases)
         {
-            // Validate path exists
+            // Skip databases that don't exist yet
             if (!File.Exists(dbPath))
-                throw new FileNotFoundException($"Database file not found: {dbPath}");
+                continue;
 
             var alias = GetDatabaseAlias(dbPath);
             var sql = $"ATTACH '{dbPath}' AS {alias}";
