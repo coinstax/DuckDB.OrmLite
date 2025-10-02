@@ -60,6 +60,58 @@ This was a critical bug that prevented v1.0.0 from working in real applications.
 
 ## [Unreleased]
 
+## [1.3.0] - 2025-10-01
+
+### Added
+- **Connection Timeout and Retry** - Automatic retry with exponential backoff for cross-process lock conflicts
+  - `Open(TimeSpan timeout)` and `OpenForWrite(TimeSpan timeout)` methods
+  - Configurable retry delays via `RetryDelayMs` and `MaxRetryDelayMs` properties
+  - Exponential backoff with random jitter to avoid thundering herd
+  - Detects DuckDB lock errors: "Could not set lock", "database is locked", "IO Error"
+  - Throws `TimeoutException` if lock not acquired within timeout
+  - Default: 50ms initial delay, 1000ms max delay
+
+- **Generic Connection Factory** - Type-safe multi-database configuration
+  - `DuckDbOrmLiteConnectionFactory<T>` automatically configures multi-database for type T
+  - Cleaner syntax: `new DuckDbOrmLiteConnectionFactory<CmcPrice>(...)`
+
+- **Concurrency Testing** - Comprehensive thread safety validation
+  - 11 concurrency tests validating MVCC behavior within same process
+  - Tests for concurrent reads/writes, update conflicts, and large database operations
+  - Verified optimistic concurrency control behavior
+
+### Fixed
+- **CRITICAL**: `BeforeExecFilter` isolation - Filter now only applies to DuckDB connections
+  - Previously affected ALL OrmLite connections globally (MySQL, SQLite, etc.)
+  - Now checks connection type before applying DuckDB-specific transformations
+  - Allows safe use of multiple database providers in same application
+
+### Improved
+- Test coverage increased to 90 tests (100% passing)
+- Documentation updated with timeout/retry examples and concurrency notes
+- Better support for multi-process scenarios
+
+### Technical Details
+- Cross-process locking: Only one process can open DuckDB file at a time (exclusive lock)
+- Within-process concurrency: Multiple threads can read/write via MVCC
+- Retry delays are configurable for different contention scenarios
+- Filter isolation via connection type checking
+
+### Example
+```csharp
+// Connection timeout with retry
+var factory = new DuckDbOrmLiteConnectionFactory("Data Source=myapp.db")
+{
+    RetryDelayMs = 100,
+    MaxRetryDelayMs = 5000
+};
+using var db = factory.Open(TimeSpan.FromSeconds(30)); // Retry for 30 seconds
+
+// Generic factory
+var factory = new DuckDbOrmLiteConnectionFactory<CryptoPrice>("Data Source=main.db")
+    .WithAdditionalDatabases("archive.db");
+```
+
 ## [1.2.0] - 2025-10-01
 
 ### Added
@@ -145,6 +197,8 @@ See README.md Multi-Database Support section for complete documentation.
 
 ---
 
+[1.3.0]: https://github.com/coinstax/DuckDB.OrmLite/releases/tag/v1.3.0
+[1.2.0]: https://github.com/coinstax/DuckDB.OrmLite/releases/tag/v1.2.0
 [1.1.0]: https://github.com/coinstax/DuckDB.OrmLite/releases/tag/v1.1.0
 [1.0.1]: https://github.com/coinstax/DuckDB.OrmLite/releases/tag/v1.0.1
 [1.0.0]: https://github.com/coinstax/DuckDB.OrmLite/releases/tag/v1.0.0

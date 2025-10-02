@@ -41,10 +41,11 @@ This package enables ServiceStack.OrmLite to work with [DuckDB](https://duckdb.o
 - Nullable types
 
 ✅ **Production Ready**
-- 75 comprehensive tests (100% passing)
+- 90 comprehensive tests (100% passing)
 - Optimized for DuckDB 1.3.2
 - SQL injection prevention
 - Robust error handling
+- Connection timeout/retry for multi-process scenarios
 
 ## Installation
 
@@ -456,7 +457,9 @@ Test coverage:
 - 15 advanced feature tests (JOINs, aggregations, edge cases)
 - 17 async/await tests
 - 18 multi-database tests
-- 75 total tests (100% passing)
+- 11 concurrency tests (thread safety, optimistic concurrency)
+- 4 generic factory tests
+- 90 total tests (100% passing)
 - Production-ready error handling and SQL injection prevention
 
 ## Contributing
