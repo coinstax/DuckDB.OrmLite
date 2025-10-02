@@ -37,6 +37,12 @@ public static class DuckDbOrmLiteConnectionFactoryExtensions
 
         OrmLiteConfig.BeforeExecFilter = dbCmd =>
         {
+            // Only apply filter to DuckDB connections
+            // Check if this is a DuckDB connection by checking the connection type
+            var isDuckDb = dbCmd.Connection?.GetType().FullName?.Contains("DuckDB") == true;
+            if (!isDuckDb)
+                return;
+
             var sql = dbCmd.CommandText;
 
             foreach (IDbDataParameter param in dbCmd.Parameters)
@@ -436,6 +442,12 @@ public class DuckDbOrmLiteConnectionFactory : OrmLiteConnectionFactory
 
         OrmLiteConfig.BeforeExecFilter = dbCmd =>
         {
+            // Only apply filter to DuckDB connections
+            // Check if this is a DuckDB connection by checking the connection type
+            var isDuckDb = dbCmd.Connection?.GetType().FullName?.Contains("DuckDB") == true;
+            if (!isDuckDb)
+                return;
+
             var sql = dbCmd.CommandText;
 
             foreach (IDbDataParameter param in dbCmd.Parameters)
