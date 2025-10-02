@@ -251,9 +251,9 @@ public class DuckDbOrmLiteConnectionFactory : OrmLiteConnectionFactory
 
         foreach (var dbPath in _additionalDatabases)
         {
-            // Skip databases that don't exist yet
+            // Validate path exists
             if (!File.Exists(dbPath))
-                continue;
+                throw new FileNotFoundException($"Database file not found: {dbPath}");
 
             var alias = GetDatabaseAlias(dbPath);
             var sql = $"ATTACH '{dbPath}' AS {alias}";
@@ -415,5 +415,26 @@ public class DuckDbOrmLiteConnectionFactory : OrmLiteConnectionFactory
 
             dbCmd.CommandText = sql;
         };
+    }
+}
+
+/// <summary>
+/// Generic DuckDB connection factory that automatically configures multi-database support for type T
+/// </summary>
+/// <typeparam name="T">The model type to query across multiple databases</typeparam>
+public class DuckDbOrmLiteConnectionFactory<T> : DuckDbOrmLiteConnectionFactory
+{
+    public DuckDbOrmLiteConnectionFactory(string connectionString)
+        : base(connectionString)
+    {
+        // Automatically configure multi-database table for type T
+        this.WithMultiDatabaseTable<T>();
+    }
+
+    public DuckDbOrmLiteConnectionFactory(string connectionString, bool autoDisposeConnection)
+        : base(connectionString, autoDisposeConnection)
+    {
+        // Automatically configure multi-database table for type T
+        this.WithMultiDatabaseTable<T>();
     }
 }

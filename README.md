@@ -196,9 +196,14 @@ writeDb.Insert(new CmcPrice { Date = DateTime.Today, Symbol = "ETH", Price = 350
 ### Type-Safe Configuration
 
 ```csharp
+// Generic factory - automatically configures multi-database support for CmcPrice
+var factory = new DuckDbOrmLiteConnectionFactory<CmcPrice>("Data Source=main.db")
+    .WithAdditionalDatabases("archive.db");
+
+// Or explicit configuration
 var factory = new DuckDbOrmLiteConnectionFactory("Data Source=main.db")
     .WithAdditionalDatabases("archive.db")
-    .WithMultiDatabaseTable<CmcPrice>();  // Type-safe table configuration
+    .WithMultiDatabaseTable<CmcPrice>();
 ```
 
 ### Use Case: Time-Series Data with Daily Updates
