@@ -1,3 +1,4 @@
+using System;
 using System.Data;
 using System.IO;
 using ServiceStack.OrmLite;
@@ -171,34 +172,18 @@ public class DuckDbOrmLiteConnectionFactory : OrmLiteConnectionFactory
     /// </summary>
     public IDbConnection Open()
     {
-        // If auto-configure is disabled, use single-db provider (no views)
-        var shouldConfigureMultiDb = _autoConfigureViews && _additionalDatabases != null && _additionalDatabases.Length > 0;
-        var providerToUse = shouldConfigureMultiDb ? _multiDbDialectProvider : _singleDbDialectProvider;
+        return Open(TimeSpan.Zero);
+    }
 
-        // Temporarily swap to the appropriate dialect provider, open connection, then restore
-        var originalProvider = this.DialectProvider;
-        try
-        {
-            // Use reflection to set the DialectProvider property
-            var providerProp = typeof(OrmLiteConnectionFactory).GetProperty("DialectProvider");
-            providerProp?.SetValue(this, providerToUse);
-
-            // Open connection using base factory method (which uses DialectProvider)
-            var conn = this.OpenDbConnection();
-
-            if (shouldConfigureMultiDb)
-            {
-                ConfigureMultiDatabase(conn);
-            }
-
-            return conn;
-        }
-        finally
-        {
-            // Restore original provider
-            var providerProp = typeof(OrmLiteConnectionFactory).GetProperty("DialectProvider");
-            providerProp?.SetValue(this, originalProvider);
-        }
+    /// <summary>
+    /// Opens a connection configured for multi-database reads with retry on lock conflicts
+    /// </summary>
+    /// <param name="timeout">Maximum time to wait for lock. Zero means no retry (fail immediately)</param>
+    /// <returns>Opened database connection</returns>
+    /// <exception cref="TimeoutException">Thrown if connection cannot be established within timeout</exception>
+    public IDbConnection Open(TimeSpan timeout)
+    {
+        return OpenWithRetry(timeout, configureMultiDb: true);
     }
 
     /// <summary>
@@ -206,22 +191,99 @@ public class DuckDbOrmLiteConnectionFactory : OrmLiteConnectionFactory
     /// </summary>
     public IDbConnection OpenForWrite()
     {
-        // Temporarily swap to single-db dialect provider, open connection, then restore
-        var originalProvider = this.DialectProvider;
-        try
-        {
-            // Use reflection to set the DialectProvider property
-            var providerProp = typeof(OrmLiteConnectionFactory).GetProperty("DialectProvider");
-            providerProp?.SetValue(this, _singleDbDialectProvider);
+        return OpenForWrite(TimeSpan.Zero);
+    }
 
-            // Open connection using base factory method
-            return this.OpenDbConnection();
-        }
-        finally
+    /// <summary>
+    /// Opens a connection for writing to the main database only with retry on lock conflicts
+    /// </summary>
+    /// <param name="timeout">Maximum time to wait for lock. Zero means no retry (fail immediately)</param>
+    /// <returns>Opened database connection</returns>
+    /// <exception cref="TimeoutException">Thrown if connection cannot be established within timeout</exception>
+    public IDbConnection OpenForWrite(TimeSpan timeout)
+    {
+        return OpenWithRetry(timeout, configureMultiDb: false);
+    }
+
+    /// <summary>
+    /// Opens a connection with retry logic for lock conflicts
+    /// </summary>
+    private IDbConnection OpenWithRetry(TimeSpan timeout, bool configureMultiDb)
+    {
+        var shouldConfigureMultiDb = configureMultiDb && _autoConfigureViews && _additionalDatabases != null && _additionalDatabases.Length > 0;
+        var providerToUse = shouldConfigureMultiDb ? _multiDbDialectProvider : _singleDbDialectProvider;
+
+        var startTime = DateTime.UtcNow;
+        var retryDelayMs = 50; // Start with 50ms
+        var maxRetryDelayMs = 1000; // Cap at 1 second
+        Exception? lastException = null;
+
+        while (true)
         {
-            // Restore original provider
-            var providerProp = typeof(OrmLiteConnectionFactory).GetProperty("DialectProvider");
-            providerProp?.SetValue(this, originalProvider);
+            var originalProvider = this.DialectProvider;
+            try
+            {
+                // Use reflection to set the DialectProvider property
+                var providerProp = typeof(OrmLiteConnectionFactory).GetProperty("DialectProvider");
+                providerProp?.SetValue(this, providerToUse);
+
+                // Try to open connection
+                var conn = this.OpenDbConnection();
+
+                if (shouldConfigureMultiDb)
+                {
+                    ConfigureMultiDatabase(conn);
+                }
+
+                return conn;
+            }
+            catch (Exception ex)
+            {
+                lastException = ex;
+
+                // Check if this is a lock error
+                var isLockError = ex.Message.Contains("Could not set lock") ||
+                                 ex.Message.Contains("database is locked") ||
+                                 ex.Message.Contains("IO Error");
+
+                if (!isLockError)
+                {
+                    // Not a lock error, rethrow immediately
+                    throw;
+                }
+
+                // Check if we should retry
+                var elapsed = DateTime.UtcNow - startTime;
+                if (timeout == TimeSpan.Zero || elapsed >= timeout)
+                {
+                    // No retry configured or timeout exceeded
+                    if (timeout == TimeSpan.Zero)
+                    {
+                        throw; // No retry - fail immediately
+                    }
+                    else
+                    {
+                        throw new TimeoutException(
+                            $"Failed to open database connection within {timeout.TotalSeconds:F1} seconds. " +
+                            $"Database may be locked by another process. Last error: {ex.Message}",
+                            ex);
+                    }
+                }
+
+                // Exponential backoff with jitter
+                var jitter = new Random().Next(0, retryDelayMs / 4);
+                var delay = retryDelayMs + jitter;
+                System.Threading.Thread.Sleep(delay);
+
+                // Increase delay for next retry (exponential backoff)
+                retryDelayMs = Math.Min(retryDelayMs * 2, maxRetryDelayMs);
+            }
+            finally
+            {
+                // Restore original provider
+                var providerProp = typeof(OrmLiteConnectionFactory).GetProperty("DialectProvider");
+                providerProp?.SetValue(this, originalProvider);
+            }
         }
     }
 

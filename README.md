@@ -274,6 +274,37 @@ using (var writeDb = factory.OpenForWrite())
 - **Read-only archives**: Additional databases should be read-only for data consistency
 - **No automatic deduplication**: `UNION ALL` doesn't deduplicate - ensure partitioning prevents duplicates
 
+### Connection Timeout and Retry
+
+DuckDB uses an exclusive file lock when opening a database. If another process has the database open, subsequent attempts will fail immediately. The timeout feature provides automatic retry with exponential backoff:
+
+```csharp
+// Default behavior - fail immediately if database is locked
+using var db = factory.Open();
+
+// Retry for up to 30 seconds with exponential backoff
+using var db = factory.Open(TimeSpan.FromSeconds(30));
+
+// Also available for write connections
+using var writeDb = factory.OpenForWrite(TimeSpan.FromSeconds(30));
+```
+
+**How it works:**
+- Detects lock errors: "Could not set lock", "database is locked", "IO Error"
+- Exponential backoff: 50ms → 100ms → 200ms → ... → 1000ms (max)
+- Random jitter to avoid thundering herd
+- Throws `TimeoutException` if lock not acquired within timeout
+
+**Use cases:**
+- Multi-process scenarios where processes may temporarily lock the database
+- Automated scripts that need to wait for other processes to finish
+- Services that need resilient database access
+
+**Concurrency notes:**
+- **Within same process**: Multiple threads can read/write concurrently (MVCC)
+- **Across processes**: Only one process can open at a time (exclusive lock)
+- Use timeout feature for cross-process coordination
+
 ### Best Practices
 
 **Recommended partitioning strategies:**
