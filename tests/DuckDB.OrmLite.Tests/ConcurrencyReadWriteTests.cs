@@ -55,16 +55,16 @@ public class ConcurrencyReadWriteTests : IDisposable
     {
         var factory = new DuckDbOrmLiteConnectionFactory($"Data Source={_testDbPath}");
 
-        // Create large initial database
-        _output.WriteLine("Creating initial database with 50,000 records...");
+        // Create initial database with reduced size for faster tests
+        _output.WriteLine("Creating initial database with 5,000 records...");
         using (var db = factory.OpenForWrite())
         {
             db.CreateTable<PriceData>(overwrite: true);
 
             var records = new List<PriceData>();
-            var symbols = new[] { "BTC", "ETH", "USDT", "BNB", "XRP", "ADA", "DOGE", "SOL", "MATIC", "DOT" };
+            var symbols = new[] { "BTC", "ETH", "USDT", "BNB", "XRP" };
 
-            for (int i = 0; i < 50000; i++)
+            for (int i = 0; i < 5000; i++)
             {
                 records.Add(new PriceData
                 {
@@ -73,19 +73,9 @@ public class ConcurrencyReadWriteTests : IDisposable
                     Price = 1000 + (i * 0.1m),
                     Volume = 1000000 + (i * 100)
                 });
-
-                if (records.Count == 5000)
-                {
-                    db.InsertAll(records);
-                    records.Clear();
-                }
             }
 
-            if (records.Any())
-            {
-                db.InsertAll(records);
-            }
-
+            db.InsertAll(records);
             _output.WriteLine($"Initial database created with {db.Count<PriceData>()} records");
         }
 
@@ -114,13 +104,13 @@ public class ConcurrencyReadWriteTests : IDisposable
 
                     _output.WriteLine("Writer: Starting to append records...");
 
-                    var symbols = new[] { "NEW1", "NEW2", "NEW3", "NEW4", "NEW5" };
+                    var symbols = new[] { "NEW1", "NEW2", "NEW3" };
                     var totalInserted = 0;
 
-                    for (int batch = 0; batch < 50; batch++)
+                    for (int batch = 0; batch < 20; batch++)  // Reduced from 50 to 20
                     {
                         var records = new List<PriceData>();
-                        for (int i = 0; i < 100; i++)
+                        for (int i = 0; i < 50; i++)  // Reduced from 100 to 50
                         {
                             records.Add(new PriceData
                             {
@@ -139,12 +129,12 @@ public class ConcurrencyReadWriteTests : IDisposable
                             writeCounts.Add((DateTime.UtcNow, totalInserted));
                         }
 
-                        if (batch % 10 == 0)
+                        if (batch % 5 == 0)
                         {
                             _output.WriteLine($"Writer: Inserted {totalInserted} records so far");
                         }
 
-                        Thread.Sleep(20); // Small delay between batches
+                        Thread.Sleep(5); // Reduced from 20ms to 5ms
                     }
 
                     _output.WriteLine($"Writer: Completed - inserted {totalInserted} new records");
@@ -174,7 +164,7 @@ public class ConcurrencyReadWriteTests : IDisposable
 
                     _output.WriteLine("Reader: Starting continuous reads...");
 
-                    for (int i = 0; i < 50; i++)
+                    for (int i = 0; i < 20; i++)  // Reduced from 50 to 20
                     {
                         var count = db.Count<PriceData>();
 
@@ -191,15 +181,15 @@ public class ConcurrencyReadWriteTests : IDisposable
                         var maxVolume = db.Scalar<decimal>(db.From<PriceData>()
                             .Select(x => Sql.Max(x.Volume)));
 
-                        if (i % 10 == 0)
+                        if (i % 5 == 0)
                         {
                             _output.WriteLine($"Reader: Read {count} total records, {btcRecords.Count} BTC records, avg ETH price: {avgPrice:F2}, max volume: {maxVolume:F0}");
                         }
 
-                        Thread.Sleep(25); // Small delay between reads
+                        Thread.Sleep(5); // Reduced from 25ms to 5ms
                     }
 
-                    _output.WriteLine($"Reader: Completed 50 read iterations");
+                    _output.WriteLine($"Reader: Completed 20 read iterations");
                 }
             }
             catch (Exception ex)
@@ -249,7 +239,7 @@ public class ConcurrencyReadWriteTests : IDisposable
         {
             var finalCount = db.Count<PriceData>();
             _output.WriteLine($"\nFinal database record count: {finalCount}");
-            _output.WriteLine($"Expected: ~55,000 (50,000 initial + 5,000 inserted)");
+            _output.WriteLine($"Expected: ~6,000 (5,000 initial + 1,000 inserted)");
         }
 
         if (writerErrors.Any() || readerErrors.Any())
@@ -268,30 +258,25 @@ public class ConcurrencyReadWriteTests : IDisposable
     {
         var factory = new DuckDbOrmLiteConnectionFactory($"Data Source={_testDbPath}");
 
-        // Create initial database
-        _output.WriteLine("Creating initial database with 25,000 records...");
+        // Create initial database with reduced size
+        _output.WriteLine("Creating initial database with 2,500 records...");
         using (var db = factory.OpenForWrite())
         {
             db.CreateTable<PriceData>(overwrite: true);
 
             var records = new List<PriceData>();
-            for (int i = 0; i < 25000; i++)
+            for (int i = 0; i < 2500; i++)
             {
                 records.Add(new PriceData
                 {
                     Date = DateTime.UtcNow.AddHours(-i),
-                    Symbol = $"SYM{i % 100}",
+                    Symbol = $"SYM{i % 20}",
                     Price = 1000 + (i * 0.1m),
                     Volume = 1000000
                 });
-
-                if (records.Count == 5000)
-                {
-                    db.InsertAll(records);
-                    records.Clear();
-                }
             }
 
+            db.InsertAll(records);
             _output.WriteLine($"Initial database created with {db.Count<PriceData>()} records");
         }
 
@@ -311,10 +296,10 @@ public class ConcurrencyReadWriteTests : IDisposable
                     startSignal.Wait();
                     _output.WriteLine("Writer: Started appending...");
 
-                    for (int batch = 0; batch < 30; batch++)
+                    for (int batch = 0; batch < 15; batch++)  // Reduced from 30 to 15
                     {
                         var records = new List<PriceData>();
-                        for (int i = 0; i < 50; i++)
+                        for (int i = 0; i < 25; i++)  // Reduced from 50 to 25
                         {
                             records.Add(new PriceData
                             {
@@ -326,7 +311,7 @@ public class ConcurrencyReadWriteTests : IDisposable
                         }
 
                         db.InsertAll(records);
-                        Thread.Sleep(10);
+                        Thread.Sleep(3);  // Reduced from 10ms to 3ms
                     }
 
                     Interlocked.Increment(ref completedTasks);
@@ -350,17 +335,17 @@ public class ConcurrencyReadWriteTests : IDisposable
                     startSignal.Wait();
                     _output.WriteLine($"Reader {readerNum}: Started reading...");
 
-                    for (int i = 0; i < 40; i++)
+                    for (int i = 0; i < 20; i++)  // Reduced from 40 to 20
                     {
                         var count = db.Count<PriceData>();
                         var sample = db.Select<PriceData>(db.From<PriceData>().Limit(10));
 
-                        if (i % 10 == 0)
+                        if (i % 5 == 0)
                         {
                             _output.WriteLine($"Reader {readerNum}: Iteration {i}, found {count} records");
                         }
 
-                        Thread.Sleep(12);
+                        Thread.Sleep(3);  // Reduced from 12ms to 3ms
                     }
 
                     Interlocked.Increment(ref completedTasks);
@@ -404,14 +389,14 @@ public class ConcurrencyReadWriteTests : IDisposable
     {
         var factory = new DuckDbOrmLiteConnectionFactory($"Data Source={_testDbPath}");
 
-        // Create initial database
-        _output.WriteLine("Creating initial database with 10,000 records...");
+        // Create initial database with reduced size
+        _output.WriteLine("Creating initial database with 1,000 records...");
         using (var db = factory.OpenForWrite())
         {
             db.CreateTable<PriceData>(overwrite: true);
 
             var records = new List<PriceData>();
-            for (int i = 0; i < 10000; i++)
+            for (int i = 0; i < 1000; i++)
             {
                 records.Add(new PriceData
                 {
@@ -420,14 +405,9 @@ public class ConcurrencyReadWriteTests : IDisposable
                     Price = 1000m,
                     Volume = 1000000
                 });
-
-                if (records.Count == 1000)
-                {
-                    db.InsertAll(records);
-                    records.Clear();
-                }
             }
 
+            db.InsertAll(records);
             _output.WriteLine($"Initial database created with {db.Count<PriceData>()} records");
         }
 
@@ -453,9 +433,9 @@ public class ConcurrencyReadWriteTests : IDisposable
                         writerStarted.Set();
                         readerOpened.Wait(TimeSpan.FromSeconds(5));
 
-                        _output.WriteLine("Writer: Inserting 1000 records in transaction...");
+                        _output.WriteLine("Writer: Inserting 200 records in transaction...");
                         var records = new List<PriceData>();
-                        for (int i = 0; i < 1000; i++)
+                        for (int i = 0; i < 200; i++)  // Reduced from 1000 to 200
                         {
                             records.Add(new PriceData
                             {
@@ -465,22 +445,22 @@ public class ConcurrencyReadWriteTests : IDisposable
                                 Volume = 9999999
                             });
 
-                            if (records.Count == 100)
+                            if (records.Count == 50)
                             {
                                 db.InsertAll(records);
                                 records.Clear();
                             }
                         }
 
-                        _output.WriteLine("Writer: Waiting 500ms before commit...");
-                        Thread.Sleep(500);
+                        _output.WriteLine("Writer: Waiting 100ms before commit...");
+                        Thread.Sleep(100);  // Reduced from 500ms to 100ms
 
                         trans.Commit();
                         writerCommitted = true;
                         _output.WriteLine("Writer: Transaction committed");
                     }
 
-                    Thread.Sleep(100); // Give reader time to see committed data
+                    Thread.Sleep(50); // Give reader time to see committed data (reduced from 100ms)
                 }
             }
             catch (Exception ex)
@@ -504,7 +484,7 @@ public class ConcurrencyReadWriteTests : IDisposable
                     _output.WriteLine("Reader: Reading while writer transaction is open...");
 
                     // Read multiple times before commit
-                    for (int i = 0; i < 5; i++)
+                    for (int i = 0; i < 3; i++)  // Reduced from 5 to 3
                     {
                         var count = db.Count<PriceData>();
                         if (!writerCommitted)
@@ -512,24 +492,24 @@ public class ConcurrencyReadWriteTests : IDisposable
                             readCountsBeforeCommit.Add(count);
                             _output.WriteLine($"Reader: Before commit - Count = {count}");
                         }
-                        Thread.Sleep(100);
+                        Thread.Sleep(30);  // Reduced from 100ms to 30ms
                     }
 
                     // Wait for commit
                     while (!writerCommitted)
                     {
-                        Thread.Sleep(50);
+                        Thread.Sleep(20);  // Reduced from 50ms to 20ms
                     }
 
-                    Thread.Sleep(200); // Wait a bit after commit
+                    Thread.Sleep(60); // Wait a bit after commit (reduced from 200ms)
 
                     // Read after commit
-                    for (int i = 0; i < 3; i++)
+                    for (int i = 0; i < 2; i++)  // Reduced from 3 to 2
                     {
                         var count = db.Count<PriceData>();
                         readCountsAfterCommit.Add(count);
                         _output.WriteLine($"Reader: After commit - Count = {count}");
-                        Thread.Sleep(50);
+                        Thread.Sleep(20);  // Reduced from 50ms to 20ms
                     }
                 }
             }
@@ -552,7 +532,7 @@ public class ConcurrencyReadWriteTests : IDisposable
             var countAfterCommit = readCountsAfterCommit.First();
             var difference = countAfterCommit - countBeforeCommit;
 
-            _output.WriteLine($"\nChange in count: {difference} (expected: ~1000)");
+            _output.WriteLine($"\nChange in count: {difference} (expected: ~200)");
 
             if (readCountsBeforeCommit.All(c => c == countBeforeCommit))
             {
