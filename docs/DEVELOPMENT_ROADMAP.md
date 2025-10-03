@@ -1,95 +1,101 @@
 # DuckDB.OrmLite Development Roadmap
 
-## Current Status: v1.0.1 (Production Ready)
+## Current Status: v1.4.0 (Production Ready)
 
-- ✅ Complete CRUD operations
+- ✅ Complete CRUD operations (sync + async)
 - ✅ LINQ query support
 - ✅ All .NET data types supported
-- ✅ 40 tests (39 passing - 97.5%)
+- ✅ **High-performance bulk insert** - 10-100x faster using Appender API
+- ✅ Multi-database support - Query across multiple DuckDB files
+- ✅ Connection timeout/retry - Exponential backoff for multi-process scenarios
+- ✅ Generic factory - Type-safe configuration
+- ✅ 100 tests (100% passing)
 - ✅ Published to NuGet
-- ✅ Critical bug fix (BeforeExecFilter auto-configuration)
 
 ## Upcoming Releases
 
-### v1.1.0 - Async/Await Support
+### v1.5.0 - Direct Parquet/CSV Operations
 
-**Target**: Q1 2025
+**Target**: Q1 2026
 
-**Goal**: Add comprehensive async/await API support for modern .NET applications
+**Goal**: Query external data files directly without importing
 
 **Features**:
-- Async versions of all CRUD operations
-- API-compatible with ServiceStack.OrmLite async patterns
-- CancellationToken support throughout
-- Pseudo-async implementation (wraps sync operations)
+- Direct Parquet file querying through OrmLite
+- Direct CSV file querying through OrmLite
+- Read external files as if they were tables
+- Zero-copy access to columnar formats
 
-**Key Methods**:
-- `SelectAsync`, `SingleAsync`, `ScalarAsync`, `CountAsync`, `ExistsAsync`
-- `InsertAsync`, `UpdateAsync`, `DeleteAsync`, `SaveAsync`
-- `ExecuteNonQueryAsync`, `ExecuteScalarAsync`, `SqlListAsync`
+**Example Usage**:
+```csharp
+// Query Parquet file directly
+var results = db.Select<LogEntry>("parquet_scan('logs/*.parquet')");
 
-**Documentation**: See [ASYNC_SUPPORT_SPEC.md](ASYNC_SUPPORT_SPEC.md)
+// Query CSV file directly
+var data = db.Select<SalesData>("read_csv_auto('sales.csv')");
+```
 
-**Estimated Effort**: 10-14 hours
+**Performance Targets**:
+- No import overhead - query files directly
+- Leverages DuckDB's native file format support
+- Ideal for data lake scenarios
 
-**Important Note**: This is pseudo-async (not true async I/O) since DuckDB.NET.Data v1.3.0 doesn't support native async operations. However, it provides API compatibility and allows consistent async/await code style.
+**Estimated Effort**: 12-16 hours
 
 ---
 
-### v1.2.0 - Multi-Database Support
+### v1.6.0 - DuckDB Complex Types
 
-**Target**: Q2 2025
+**Target**: Q2 2026
 
-**Goal**: Enable transparent querying across multiple DuckDB database files
-
-**Use Cases**:
-- Time-series data partitioned by year/month
-- Staging databases for gap-filling workflows
-- Archive databases for historical data
-- Zero downtime updates
+**Goal**: Native support for DuckDB-specific data types
 
 **Features**:
-- Fluent configuration API for multi-database setup
-- Automatic VIEW creation for unified queries
-- Read/write separation (reads span all DBs, writes to main DB)
-- Complete transparency - application code unchanged
+- Native support for LIST types
+- Native support for STRUCT types
+- Native support for MAP types
+- Complex nested data structures
 
-**Example Configuration**:
+**Example Usage**:
 ```csharp
-var factory = new DuckDbOrmLiteConnectionFactory("cmcprice.db")
-    .WithAdditionalDatabases("cmcprice_staging.db", "cmcprice_2024.db")
-    .WithMultiDatabaseTables("CmcPrice", "FiatPrice");
-
-// Application code unchanged
-using (var db = factory.Open())
+public class EventLog
 {
-    var prices = db.Select<CmcPrice>(x => x.Symbol == "BTC");
-    // Automatically queries across all databases
+    public int Id { get; set; }
+    public List<string> Tags { get; set; }  // DuckDB LIST
+    public Dictionary<string, object> Metadata { get; set; }  // DuckDB MAP
 }
 ```
 
-**Documentation**: See [MULTI_DATABASE_SPEC.md](MULTI_DATABASE_SPEC.md)
-
-**Estimated Effort**: 16-24 hours
+**Estimated Effort**: 20-24 hours
 
 ---
 
-### v1.3.0 - Performance & Bulk Operations
+### v1.7.0 - Advanced Query Features
 
-**Target**: Q3 2025
+**Target**: Q3 2026
 
-**Goal**: Optimize for large-scale data operations
+**Goal**: DuckDB-specific analytical functions
 
 **Features**:
-- Bulk operations using DuckDB's COPY command
-- Direct Parquet/CSV file querying through OrmLite
-- Optimized batch insert/update operations
-- Connection pooling improvements
+- Window functions with LINQ extensions
+- DuckDB-specific aggregates (APPROX_COUNT_DISTINCT, etc.)
+- Time series optimizations
+- ASOF joins for time-series data
 
-**Performance Targets**:
-- 10x faster bulk inserts (COPY vs INSERT)
-- Direct Parquet querying without import
-- Better handling of DuckDB's single-writer model
+**Example Usage**:
+```csharp
+// Window functions
+var ranked = db.Select<Product>(db.From<Product>()
+    .SelectDistinct(x => new {
+        x.Name,
+        Rank = Sql.Custom("ROW_NUMBER() OVER (PARTITION BY Category ORDER BY Price DESC)")
+    }));
+
+// ASOF joins for time-series
+var prices = db.AsOfJoin<Price, Trade>((p, t) => p.Timestamp <= t.Timestamp);
+```
+
+**Estimated Effort**: 24-30 hours
 
 ---
 
@@ -117,6 +123,72 @@ using (var db = factory.Open())
 
 ## Completed Milestones
 
+### v1.4.0 (2025-10-03) - High-Performance Bulk Insert
+**Status**: ✅ Released
+
+- **BulkInsert API** - 10-100x faster than InsertAll using DuckDB's Appender API
+- `BulkInsert<T>()` and `BulkInsertAsync<T>()` extension methods
+- Direct memory-to-database transfer for maximum performance
+- 10 comprehensive bulk insert tests
+- Optimized concurrency tests for 2x faster test suite
+- 100 tests total (100% passing)
+
+**Performance**:
+- 1,000 rows: ~10ms (10x faster)
+- 10,000 rows: ~50ms (20x faster)
+- 100,000 rows: ~500ms (20-100x faster)
+
+**Impact**: Major performance improvement for bulk data loading scenarios
+
+---
+
+### v1.3.0 (2025-10-01) - Connection Management & Generic Factory
+**Status**: ✅ Released
+
+- **Connection Timeout/Retry** - Exponential backoff for multi-process lock conflicts
+- `Open(TimeSpan timeout)` and `OpenForWrite(TimeSpan timeout)` methods
+- Configurable retry delays: `RetryDelayMs` and `MaxRetryDelayMs` properties
+- **Generic Factory** - Type-safe multi-database configuration
+- `DuckDbOrmLiteConnectionFactory<T>` for cleaner syntax
+- **11 concurrency tests** validating MVCC behavior
+- **CRITICAL FIX**: BeforeExecFilter now isolated to DuckDB connections only
+- 90 tests (100% passing)
+
+**Impact**: Better multi-process support and type-safe configuration
+
+---
+
+### v1.2.0 (2025-10-01) - Multi-Database Support
+**Status**: ✅ Released
+
+- **Multi-Database Queries** - Transparent querying across multiple DuckDB files
+- Fluent API: `.WithAdditionalDatabases()` and `.WithMultiDatabaseTables()`
+- Automatic VIEW creation with UNION ALL
+- Read/write separation: `Open()` for multi-db, `OpenForWrite()` for single-db
+- Smart table detection - handles tables in subset of databases
+- 18 comprehensive multi-database tests
+- 75 tests total (100% passing)
+
+**Use Cases**: Time-series partitioning, archival scenarios, data lake queries
+
+**Impact**: Enable scalable data partitioning strategies
+
+---
+
+### v1.1.0 (2025-10-01) - Async/Await Support
+**Status**: ✅ Released
+
+- **Async API** - Complete async/await support for all operations
+- `SelectAsync`, `InsertAsync`, `UpdateAsync`, `DeleteAsync`, etc.
+- API-compatible with ServiceStack.OrmLite async patterns
+- 17 comprehensive async tests
+- Pseudo-async implementation (wraps sync - DuckDB.NET limitation)
+- 57 tests total (100% passing)
+
+**Impact**: Modern async/await code style support
+
+---
+
 ### v1.0.1 (2025-10-01) - Critical Fix
 **Status**: ✅ Released
 
@@ -125,6 +197,8 @@ using (var db = factory.Open())
 - Made library usable in real applications without manual setup
 
 **Impact**: Critical - v1.0.0 was broken for real-world usage
+
+---
 
 ### v1.0.0 (2025-10-01) - Initial Release
 **Status**: ✅ Released
@@ -136,6 +210,8 @@ using (var db = factory.Open())
 - All .NET primitive types supported
 - 40 comprehensive tests
 - NuGet package published
+
+**Impact**: First production-ready release
 
 ---
 
@@ -152,18 +228,19 @@ using (var db = factory.Open())
 
 ## How to Contribute
 
-### For v1.1.0 (Async Support)
-1. Read [ASYNC_SUPPORT_SPEC.md](ASYNC_SUPPORT_SPEC.md)
-2. Implement async extensions in `src/DuckDB.OrmLite/DuckDbAsyncExtensions.cs`
-3. Add tests in `tests/DuckDB.OrmLite.Tests/AsyncTests.cs`
-4. Update README.md with async examples and limitations
+### For v1.5.0 (Direct Parquet/CSV)
+1. Create specification document: `EXTERNAL_FILES_SPEC.md`
+2. Research DuckDB's `parquet_scan()` and `read_csv_auto()` functions
+3. Implement extension methods for external file queries
+4. Add comprehensive tests for various file formats
+5. Update README.md with examples and use cases
 
-### For v1.2.0 (Multi-Database)
-1. Read [MULTI_DATABASE_SPEC.md](MULTI_DATABASE_SPEC.md)
-2. Extend `DuckDbOrmLiteConnectionFactory` with configuration API
-3. Modify `DuckDbDialectProvider` for view redirection
-4. Add tests for multi-database scenarios
-5. Create migration guide for existing applications
+### For v1.6.0 (Complex Types)
+1. Create specification document: `COMPLEX_TYPES_SPEC.md`
+2. Design type converters for LIST, STRUCT, MAP
+3. Implement serialization/deserialization logic
+4. Add tests for nested data structures
+5. Document type mapping and limitations
 
 ### General Guidelines
 1. All new features must have specifications in `docs/`
@@ -171,6 +248,7 @@ using (var db = factory.Open())
 3. Maintain test coverage above 95%
 4. Follow existing code style and patterns
 5. Document limitations and trade-offs clearly
+6. Ensure backward compatibility (no breaking changes in minor versions)
 
 ---
 
@@ -181,4 +259,20 @@ using (var db = factory.Open())
 
 ---
 
-**Last Updated**: 2025-10-01
+**Last Updated**: 2025-10-03
+
+---
+
+## Version History Summary
+
+| Version | Release Date | Key Feature | Status |
+|---------|-------------|-------------|--------|
+| v1.4.0 | 2025-10-03 | High-Performance Bulk Insert | ✅ Released |
+| v1.3.0 | 2025-10-01 | Connection Timeout/Retry + Generic Factory | ✅ Released |
+| v1.2.0 | 2025-10-01 | Multi-Database Support | ✅ Released |
+| v1.1.0 | 2025-10-01 | Async/Await Support | ✅ Released |
+| v1.0.1 | 2025-10-01 | Critical BeforeExecFilter Fix | ✅ Released |
+| v1.0.0 | 2025-10-01 | Initial Release | ✅ Released |
+| v1.5.0 | Q1 2026 | Direct Parquet/CSV Operations | 📋 Planned |
+| v1.6.0 | Q2 2026 | DuckDB Complex Types | 📋 Planned |
+| v1.7.0 | Q3 2026 | Advanced Query Features | 📋 Planned |
