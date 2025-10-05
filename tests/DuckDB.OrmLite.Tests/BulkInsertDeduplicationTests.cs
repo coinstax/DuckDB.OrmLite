@@ -232,6 +232,76 @@ public class BulkInsertDeduplicationTests : IDisposable
     }
 
     [Fact]
+    public void BulkInsertWithDeduplication_MultipleUniqueColumns_ThrowsException()
+    {
+        using var db = _dbFactory.Open();
+        db.CreateTable<MultipleUniqueModel>(overwrite: true);
+
+        var data = new List<MultipleUniqueModel>
+        {
+            new() { Email = "test@test.com", Username = "testuser", Name = "Test" }
+        };
+
+        var ex = Assert.Throws<InvalidOperationException>(() =>
+            db.BulkInsertWithDeduplication(data));
+
+        Assert.Contains("multiple", ex.Message);
+        Assert.Contains("Email", ex.Message);
+        Assert.Contains("Username", ex.Message);
+    }
+
+    [Fact]
+    public void BulkInsertWithDeduplication_MultipleCompositeIndexes_ThrowsException()
+    {
+        using var db = _dbFactory.Open();
+        db.CreateTable<MultipleCompositeIndexModel>(overwrite: true);
+
+        var data = new List<MultipleCompositeIndexModel>
+        {
+            new() { Col1 = "A", Col2 = "B", Col3 = "C" }
+        };
+
+        var ex = Assert.Throws<InvalidOperationException>(() =>
+            db.BulkInsertWithDeduplication(data));
+
+        Assert.Contains("multiple [CompositeIndex(Unique=true)]", ex.Message);
+    }
+
+    [Fact]
+    public void BulkInsertWithDeduplication_CompositeKeyWithUniqueColumn_UsesCompositeKey()
+    {
+        using var db = _dbFactory.Open();
+        db.CreateTable<CompositeKeyWithUniqueModel>(overwrite: true);
+
+        // Insert initial data
+        var initialData = new List<CompositeKeyWithUniqueModel>
+        {
+            new() { Timestamp = new DateTime(2025, 1, 1), Symbol = "BTC", TransactionId = "TX001", Value = 100 }
+        };
+        db.InsertAll(initialData);
+
+        // Try to insert:
+        // - Same (Timestamp, Symbol) but different TransactionId -> Should be rejected (composite key duplicate)
+        // - Different (Timestamp, Symbol) with different TransactionId -> Should be INSERTED
+        var newData = new List<CompositeKeyWithUniqueModel>
+        {
+            new() { Timestamp = new DateTime(2025, 1, 1), Symbol = "BTC", TransactionId = "TX002", Value = 999 }, // Duplicate composite key (rejected)
+            new() { Timestamp = new DateTime(2025, 1, 2), Symbol = "BTC", TransactionId = "TX003", Value = 200 }  // New composite key (inserted)
+        };
+
+        // Auto-detect should use CompositeKey (Timestamp, Symbol), not the [Unique] TransactionId
+        var insertedCount = db.BulkInsertWithDeduplication(newData);
+
+        Assert.Equal(1, insertedCount); // Only second record inserted (different composite key)
+        Assert.Equal(2, db.Count<CompositeKeyWithUniqueModel>());
+
+        // Verify the composite key duplicate was rejected
+        var results = db.Select<CompositeKeyWithUniqueModel>().OrderBy(x => x.Timestamp).ToList();
+        Assert.Equal(100, results.First(r => r.Timestamp == new DateTime(2025, 1, 1)).Value); // Original preserved
+        Assert.Equal("TX001", results.First(r => r.Timestamp == new DateTime(2025, 1, 1)).TransactionId); // Original TransactionId
+    }
+
+    [Fact]
     public void BulkInsertWithDeduplication_LargeDataset_PerformanceTest()
     {
         using var db = _dbFactory.Open();
@@ -459,5 +529,48 @@ public class LargeScaleModel
     public DateTime TimestampCol { get; set; }
     public string VarcharCol { get; set; }
     public long BigintCol { get; set; }
+    public decimal Value { get; set; }
+}
+
+/// <summary>
+/// Model with multiple individual unique columns - should throw error on auto-detect
+/// </summary>
+public class MultipleUniqueModel
+{
+    [AutoIncrement]
+    public int Id { get; set; }
+    [Unique]
+    public string Email { get; set; }
+    [Unique]
+    public string Username { get; set; }
+    public string Name { get; set; }
+}
+
+/// <summary>
+/// Model with multiple CompositeIndex(Unique=true) attributes - should throw error on auto-detect
+/// </summary>
+[CompositeIndex(nameof(Col1), nameof(Col2), Unique = true)]
+[CompositeIndex(nameof(Col2), nameof(Col3), Unique = true)]
+public class MultipleCompositeIndexModel
+{
+    [AutoIncrement]
+    public int Id { get; set; }
+    public string Col1 { get; set; }
+    public string Col2 { get; set; }
+    public string Col3 { get; set; }
+}
+
+/// <summary>
+/// Model with CompositeKey AND individual Unique column - CompositeKey takes precedence
+/// </summary>
+[CompositeKey(nameof(Timestamp), nameof(Symbol))]
+public class CompositeKeyWithUniqueModel
+{
+    [AutoIncrement]
+    public int Id { get; set; }
+    public DateTime Timestamp { get; set; }
+    public string Symbol { get; set; }
+    [Unique]
+    public string TransactionId { get; set; }
     public decimal Value { get; set; }
 }

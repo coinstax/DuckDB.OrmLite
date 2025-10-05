@@ -253,14 +253,56 @@ WHERE {whereClause}";
     }
 
     /// <summary>
-    /// Extracts unique columns from model attributes
+    /// Extracts unique columns from model attributes.
+    /// Priority: CompositeKey > CompositeIndex(Unique=true) > Individual [Unique]/[Index(Unique=true)]
+    /// Throws if multiple composite constraints exist (ambiguous).
     /// </summary>
     private static string[] ExtractUniqueColumnsFromModel<T>()
     {
         var modelDef = typeof(T).GetModelMetadata();
+
+        // Priority 1: Check for CompositeKey on the class
+        var compositeKeys = typeof(T).GetCustomAttributes(typeof(ServiceStack.DataAnnotations.CompositeKeyAttribute), true)
+            .Cast<ServiceStack.DataAnnotations.CompositeKeyAttribute>()
+            .ToList();
+
+        if (compositeKeys.Count > 1)
+        {
+            throw new InvalidOperationException(
+                $"Type {typeof(T).Name} has multiple [CompositeKey] attributes. " +
+                "Only one composite constraint is allowed for auto-detection. " +
+                "Use the explicit uniqueKeyColumns parameter to specify which columns to use.");
+        }
+
+        if (compositeKeys.Count == 1)
+        {
+            // Use CompositeKey columns - this is the primary key constraint
+            return compositeKeys[0].FieldNames.ToArray();
+        }
+
+        // Priority 2: Check for CompositeIndex with Unique=true on the class
+        var compositeIndexes = typeof(T).GetCustomAttributes(typeof(ServiceStack.DataAnnotations.CompositeIndexAttribute), true)
+            .Cast<ServiceStack.DataAnnotations.CompositeIndexAttribute>()
+            .Where(idx => idx.Unique)
+            .ToList();
+
+        if (compositeIndexes.Count > 1)
+        {
+            throw new InvalidOperationException(
+                $"Type {typeof(T).Name} has multiple [CompositeIndex(Unique=true)] attributes. " +
+                "Only one composite unique constraint is allowed for auto-detection. " +
+                "Use the explicit uniqueKeyColumns parameter to specify which columns to use.");
+        }
+
+        if (compositeIndexes.Count == 1)
+        {
+            // Use CompositeIndex unique columns
+            return compositeIndexes[0].FieldNames.ToArray();
+        }
+
+        // Priority 3: Check for individual [Unique] or [Index(Unique=true)] attributes on fields
         var uniqueColumns = new List<string>();
 
-        // Check for [Unique] attribute on fields
         foreach (var field in modelDef.FieldDefinitions)
         {
             var uniqueAttr = field.PropertyInfo?.GetCustomAttributes(typeof(ServiceStack.DataAnnotations.UniqueAttribute), true)
@@ -270,43 +312,34 @@ WHERE {whereClause}";
             {
                 uniqueColumns.Add(field.FieldName);
             }
-        }
-
-        // Check for CompositeKey on the class
-        var compositeKeys = typeof(T).GetCustomAttributes(typeof(ServiceStack.DataAnnotations.CompositeKeyAttribute), true)
-            .Cast<ServiceStack.DataAnnotations.CompositeKeyAttribute>()
-            .ToList();
-        foreach (var idx in compositeKeys)
-        {
-            // CompositeIndex uses field names
-            uniqueColumns.AddRange(idx.FieldNames);
-        }
-
-        // Check for CompositeIndex with Unique=true on the class
-        var compositeIndexes = typeof(T).GetCustomAttributes(typeof(ServiceStack.DataAnnotations.CompositeIndexAttribute), true)
-            .Cast<ServiceStack.DataAnnotations.CompositeIndexAttribute>()
-            .Where(idx => idx.Unique)
-            .ToList();
-
-        foreach (var idx in compositeIndexes)
-        {
-            // CompositeIndex uses field names
-            uniqueColumns.AddRange(idx.FieldNames);
-        }
-
-        // Check for Index(Unique=true) on fields
-        foreach (var field in modelDef.FieldDefinitions)
-        {
-            var indexAttr = field.PropertyInfo?.GetCustomAttributes(typeof(ServiceStack.DataAnnotations.IndexAttribute), true)
-                .FirstOrDefault() as ServiceStack.DataAnnotations.IndexAttribute;
-
-            if (indexAttr?.Unique == true)
+            else
             {
-                uniqueColumns.Add(field.FieldName);
+                var indexAttr = field.PropertyInfo?.GetCustomAttributes(typeof(ServiceStack.DataAnnotations.IndexAttribute), true)
+                    .FirstOrDefault() as ServiceStack.DataAnnotations.IndexAttribute;
+
+                if (indexAttr?.Unique == true)
+                {
+                    uniqueColumns.Add(field.FieldName);
+                }
             }
         }
 
-        return uniqueColumns.Distinct().ToArray();
+        if (uniqueColumns.Count > 1)
+        {
+            throw new InvalidOperationException(
+                $"Type {typeof(T).Name} has multiple [Unique] or [Index(Unique=true)] attributes: {string.Join(", ", uniqueColumns)}. " +
+                "Multiple individual unique constraints cannot be combined for deduplication. " +
+                "Use the explicit uniqueKeyColumns parameter to specify which column(s) to use for duplicate checking.");
+        }
+
+        if (uniqueColumns.Count == 1)
+        {
+            // Single unique column
+            return uniqueColumns.ToArray();
+        }
+
+        // No unique constraints found
+        return Array.Empty<string>();
     }
 }
 
