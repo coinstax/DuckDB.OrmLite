@@ -302,6 +302,84 @@ public class BulkInsertDeduplicationTests : IDisposable
     }
 
     [Fact]
+    public void BulkInsertWithDeduplication_LinqExpression_SingleColumn_WorksCorrectly()
+    {
+        using var db = _dbFactory.Open();
+        db.CreateTable<UniqueAttributeModel>(overwrite: true);
+
+        // Insert initial data
+        db.InsertAll(new[]
+        {
+            new UniqueAttributeModel { Email = "user1@test.com", Name = "User 1" }
+        });
+
+        // Use LINQ expression for single column
+        var newData = new[]
+        {
+            new UniqueAttributeModel { Email = "user1@test.com", Name = "Duplicate" }, // Duplicate
+            new UniqueAttributeModel { Email = "user2@test.com", Name = "User 2" }     // New
+        };
+
+        var insertedCount = db.BulkInsertWithDeduplication(newData, x => x.Email);
+
+        Assert.Equal(1, insertedCount);
+        Assert.Equal(2, db.Count<UniqueAttributeModel>());
+    }
+
+    [Fact]
+    public void BulkInsertWithDeduplication_LinqExpression_MultipleColumns_WorksCorrectly()
+    {
+        using var db = _dbFactory.Open();
+        db.CreateTable<TimeSeriesData>(overwrite: true);
+
+        // Insert initial data
+        db.InsertAll(new[]
+        {
+            new TimeSeriesData { Timestamp = new DateTime(2025, 1, 1), Symbol = "BTC", Value = 100 }
+        });
+
+        // Use LINQ expression for multiple columns
+        var newData = new[]
+        {
+            new TimeSeriesData { Timestamp = new DateTime(2025, 1, 1), Symbol = "BTC", Value = 999 }, // Duplicate
+            new TimeSeriesData { Timestamp = new DateTime(2025, 1, 2), Symbol = "BTC", Value = 101 }  // New
+        };
+
+        var insertedCount = db.BulkInsertWithDeduplication(
+            newData,
+            x => new { x.Timestamp, x.Symbol }
+        );
+
+        Assert.Equal(1, insertedCount);
+        Assert.Equal(2, db.Count<TimeSeriesData>());
+    }
+
+    [Fact]
+    public async System.Threading.Tasks.Task BulkInsertWithDeduplication_LinqExpressionAsync_WorksCorrectly()
+    {
+        using var db = _dbFactory.Open();
+        db.CreateTable<TimeSeriesData>(overwrite: true);
+
+        db.InsertAll(new[]
+        {
+            new TimeSeriesData { Timestamp = new DateTime(2025, 1, 1), Symbol = "BTC", Value = 100 }
+        });
+
+        var newData = new[]
+        {
+            new TimeSeriesData { Timestamp = new DateTime(2025, 1, 1), Symbol = "BTC", Value = 999 },
+            new TimeSeriesData { Timestamp = new DateTime(2025, 1, 2), Symbol = "BTC", Value = 101 }
+        };
+
+        var insertedCount = await db.BulkInsertWithDeduplicationAsync(
+            newData,
+            x => new { x.Timestamp, x.Symbol }
+        );
+
+        Assert.Equal(1, insertedCount);
+    }
+
+    [Fact]
     public void BulkInsertWithDeduplication_LargeDataset_PerformanceTest()
     {
         using var db = _dbFactory.Open();

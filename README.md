@@ -482,10 +482,16 @@ public class CryptoPrice
 // Load 70,000 new records (internally unique, but may overlap with existing)
 var newPrices = LoadNewPrices(); // 70K records
 
-// Insert with deduplication - only new records are inserted
+// Option 1: LINQ expression (type-safe, recommended)
 var insertedCount = db.BulkInsertWithDeduplication(
     newPrices,
-    "Timestamp", "Symbol", "ExchangeId"  // Composite unique key
+    x => new { x.Timestamp, x.Symbol, x.ExchangeId }
+);
+
+// Option 2: String column names (flexible)
+var insertedCount = db.BulkInsertWithDeduplication(
+    newPrices,
+    "Timestamp", "Symbol", "ExchangeId"
 );
 
 Console.WriteLine($"Inserted {insertedCount} new records (duplicates filtered)");
@@ -513,30 +519,52 @@ WHERE m.Timestamp IS NULL  -- Only insert if not exists
 // Step 4: DROP staging table (always executed, even on error)
 ```
 
-### Auto-Detect Unique Columns
+### Specifying Unique Columns
 
-Use model attributes to auto-configure unique keys:
-
+**Option 1: LINQ Expression (Type-Safe, Recommended)**
 ```csharp
-// Option 1: CompositeIndex attribute
+// Single column
+var insertedCount = db.BulkInsertWithDeduplication(
+    users,
+    x => x.Email
+);
+
+// Multiple columns
+var insertedCount = db.BulkInsertWithDeduplication(
+    prices,
+    x => new { x.Timestamp, x.Symbol, x.ExchangeId }
+);
+
+// Async
+var insertedCount = await db.BulkInsertWithDeduplicationAsync(
+    prices,
+    x => new { x.Timestamp, x.Symbol }
+);
+```
+
+**Option 2: String Column Names (Flexible)**
+```csharp
+var insertedCount = db.BulkInsertWithDeduplication(
+    prices,
+    "Timestamp", "Symbol", "ExchangeId"
+);
+```
+
+**Option 3: Auto-Detect from Attributes**
+```csharp
+// CompositeIndex attribute
 [CompositeIndex(nameof(Timestamp), nameof(Symbol), nameof(ExchangeId), Unique = true)]
-public class CryptoPrice
-{
-    public DateTime Timestamp { get; set; }
-    public string Symbol { get; set; }
-    public long ExchangeId { get; set; }
-    public decimal Price { get; set; }
-}
+public class CryptoPrice { ... }
 
 // Auto-detects unique columns from attribute
 var insertedCount = db.BulkInsertWithDeduplication(newPrices);
 
-// Option 2: [Unique] attribute on single field
+// Single [Unique] attribute
 public class User
 {
     [Unique]
     public string Email { get; set; }
-    public string Name { get; set; }
+    ...
 }
 
 var insertedCount = db.BulkInsertWithDeduplication(newUsers);

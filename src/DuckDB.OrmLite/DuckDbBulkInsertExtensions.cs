@@ -144,10 +144,39 @@ public static class DuckDbBulkInsertExtensions
             throw new InvalidOperationException(
                 $"No unique columns found on type {typeof(T).Name}. " +
                 "Use [Unique], [Index(Unique=true)], or [CompositeIndex] attributes, " +
-                "or use the overload with explicit uniqueKeyColumns parameter.");
+                "or use the overload with explicit uniqueKeyColumns parameter, " +
+                "or use the LINQ expression overload: db.BulkInsertWithDeduplication(records, x => new {{ x.Col1, x.Col2 }})");
         }
 
         return BulkInsertWithDeduplication(db, objs, uniqueColumns);
+    }
+
+    /// <summary>
+    /// Performs a high-performance bulk insert with automatic deduplication using a LINQ expression to specify unique columns.
+    /// Type-safe alternative to string-based column names.
+    /// </summary>
+    /// <typeparam name="T">The model type</typeparam>
+    /// <param name="db">The database connection</param>
+    /// <param name="objs">The objects to insert</param>
+    /// <param name="uniqueKeySelector">LINQ expression selecting the unique key columns.
+    /// Single column: x => x.Email
+    /// Multiple columns: x => new { x.Timestamp, x.Symbol }</param>
+    /// <returns>Number of rows actually inserted (excluding duplicates)</returns>
+    /// <exception cref="ArgumentException">Thrown if expression doesn't select valid columns</exception>
+    /// <example>
+    /// // Single column
+    /// db.BulkInsertWithDeduplication(users, x => x.Email);
+    ///
+    /// // Multiple columns
+    /// db.BulkInsertWithDeduplication(prices, x => new { x.Timestamp, x.Symbol });
+    /// </example>
+    public static int BulkInsertWithDeduplication<T>(
+        this IDbConnection db,
+        IEnumerable<T> objs,
+        System.Linq.Expressions.Expression<Func<T, object>> uniqueKeySelector)
+    {
+        var columnNames = ExtractColumnNamesFromExpression(uniqueKeySelector);
+        return BulkInsertWithDeduplication(db, objs, columnNames);
     }
 
     /// <summary>
@@ -171,6 +200,18 @@ public static class DuckDbBulkInsertExtensions
         IEnumerable<T> objs)
     {
         return System.Threading.Tasks.Task.Run(() => BulkInsertWithDeduplication(db, objs));
+    }
+
+    /// <summary>
+    /// Async version of BulkInsertWithDeduplication with LINQ expression for unique key.
+    /// NOTE: This is pseudo-async (wraps sync operation).
+    /// </summary>
+    public static System.Threading.Tasks.Task<int> BulkInsertWithDeduplicationAsync<T>(
+        this IDbConnection db,
+        IEnumerable<T> objs,
+        System.Linq.Expressions.Expression<Func<T, object>> uniqueKeySelector)
+    {
+        return System.Threading.Tasks.Task.Run(() => BulkInsertWithDeduplication(db, objs, uniqueKeySelector));
     }
 
     /// <summary>
@@ -340,6 +381,62 @@ WHERE {whereClause}";
 
         // No unique constraints found
         return Array.Empty<string>();
+    }
+
+    /// <summary>
+    /// Extracts column names from a LINQ expression
+    /// </summary>
+    private static string[] ExtractColumnNamesFromExpression<T>(System.Linq.Expressions.Expression<Func<T, object>> expression)
+    {
+        var columnNames = new List<string>();
+
+        // Handle the body of the expression
+        var body = expression.Body;
+
+        // Remove any Convert/ConvertChecked wrapper (e.g., from boxing value types)
+        if (body is System.Linq.Expressions.UnaryExpression unary &&
+            (unary.NodeType == System.Linq.Expressions.ExpressionType.Convert ||
+             unary.NodeType == System.Linq.Expressions.ExpressionType.ConvertChecked))
+        {
+            body = unary.Operand;
+        }
+
+        // Case 1: Single property access - x => x.Email
+        if (body is System.Linq.Expressions.MemberExpression memberExpr)
+        {
+            columnNames.Add(memberExpr.Member.Name);
+        }
+        // Case 2: Anonymous type - x => new { x.Timestamp, x.Symbol }
+        else if (body is System.Linq.Expressions.NewExpression newExpr)
+        {
+            foreach (var arg in newExpr.Arguments)
+            {
+                if (arg is System.Linq.Expressions.MemberExpression memberArg)
+                {
+                    columnNames.Add(memberArg.Member.Name);
+                }
+                else
+                {
+                    throw new ArgumentException(
+                        $"Invalid expression argument: {arg}. " +
+                        "Only property/field access is supported in the unique key selector.");
+                }
+            }
+        }
+        else
+        {
+            throw new ArgumentException(
+                $"Invalid expression: {expression}. " +
+                "Use either a single property (x => x.Email) or anonymous type (x => new {{ x.Col1, x.Col2 }})");
+        }
+
+        if (columnNames.Count == 0)
+        {
+            throw new ArgumentException(
+                "No columns found in expression. Ensure you're selecting at least one property.");
+        }
+
+        return columnNames.ToArray();
     }
 }
 
