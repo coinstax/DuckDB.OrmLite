@@ -272,6 +272,16 @@ WHERE {whereClause}";
             }
         }
 
+        // Check for CompositeKey on the class
+        var compositeKeys = typeof(T).GetCustomAttributes(typeof(ServiceStack.DataAnnotations.CompositeKeyAttribute), true)
+            .Cast<ServiceStack.DataAnnotations.CompositeKeyAttribute>()
+            .ToList();
+        foreach (var idx in compositeKeys)
+        {
+            // CompositeIndex uses field names
+            uniqueColumns.AddRange(idx.FieldNames);
+        }
+
         // Check for CompositeIndex with Unique=true on the class
         var compositeIndexes = typeof(T).GetCustomAttributes(typeof(ServiceStack.DataAnnotations.CompositeIndexAttribute), true)
             .Cast<ServiceStack.DataAnnotations.CompositeIndexAttribute>()
