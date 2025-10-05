@@ -1,20 +1,21 @@
 # DuckDB.OrmLite Development Roadmap
 
-## Current Status: v1.4.0 (Production Ready)
+## Current Status: v1.5.0 (Production Ready)
 
 - ✅ Complete CRUD operations (sync + async)
 - ✅ LINQ query support
 - ✅ All .NET data types supported
 - ✅ **High-performance bulk insert** - 10-100x faster using Appender API
+- ✅ **Bulk insert with deduplication** - Safe inserts with staging tables for massive datasets (845M+ rows)
 - ✅ Multi-database support - Query across multiple DuckDB files
 - ✅ Connection timeout/retry - Exponential backoff for multi-process scenarios
 - ✅ Generic factory - Type-safe configuration
-- ✅ 100 tests (100% passing)
+- ✅ 119 tests (100% passing)
 - ✅ Published to NuGet
 
 ## Upcoming Releases
 
-### v1.5.0 - Direct Parquet/CSV Operations
+### v1.6.0 - Direct Parquet/CSV Operations
 
 **Target**: Q1 2026
 
@@ -44,7 +45,7 @@ var data = db.Select<SalesData>("read_csv_auto('sales.csv')");
 
 ---
 
-### v1.6.0 - DuckDB Complex Types
+### v1.7.0 - DuckDB Complex Types
 
 **Target**: Q2 2026
 
@@ -70,7 +71,7 @@ public class EventLog
 
 ---
 
-### v1.7.0 - Advanced Query Features
+### v1.8.0 - Advanced Query Features
 
 **Target**: Q3 2026
 
@@ -122,6 +123,28 @@ var prices = db.AsOfJoin<Price, Trade>((p, t) => p.Timestamp <= t.Timestamp);
 ---
 
 ## Completed Milestones
+
+### v1.5.0 (2025-10-05) - Bulk Insert with Deduplication
+**Status**: ✅ Released
+
+- **BulkInsertWithDeduplication API** - Safe bulk inserts for massive datasets using staging tables
+- Type-safe LINQ expression API: `db.BulkInsertWithDeduplication(data, x => x.Email)`
+- Multi-column support: `db.BulkInsertWithDeduplication(data, x => new { x.Col1, x.Col2 })`
+- Auto-detection from attributes with priority-based selection (CompositeKey > CompositeIndex > Unique)
+- Explicit column specification: `db.BulkInsertWithDeduplication(data, "Email", "Phone")`
+- Staging table pattern - zero risk to main table during inserts
+- Works with 845M+ row tables where UNIQUE constraints cannot be maintained in memory
+- 16 comprehensive deduplication tests
+- 119 tests total (100% passing)
+
+**Use Cases**:
+- Massive datasets (100M+ rows) where DuckDB's ART indexes cannot fit in memory
+- Safe bulk inserts without risking main table integrity
+- Duplicate detection and prevention at scale
+
+**Impact**: Enables safe bulk loading for production datasets that exceed memory limits
+
+---
 
 ### v1.4.0 (2025-10-03) - High-Performance Bulk Insert
 **Status**: ✅ Released
@@ -228,14 +251,14 @@ var prices = db.AsOfJoin<Price, Trade>((p, t) => p.Timestamp <= t.Timestamp);
 
 ## How to Contribute
 
-### For v1.5.0 (Direct Parquet/CSV)
+### For v1.6.0 (Direct Parquet/CSV)
 1. Create specification document: `EXTERNAL_FILES_SPEC.md`
 2. Research DuckDB's `parquet_scan()` and `read_csv_auto()` functions
 3. Implement extension methods for external file queries
 4. Add comprehensive tests for various file formats
 5. Update README.md with examples and use cases
 
-### For v1.6.0 (Complex Types)
+### For v1.7.0 (Complex Types)
 1. Create specification document: `COMPLEX_TYPES_SPEC.md`
 2. Design type converters for LIST, STRUCT, MAP
 3. Implement serialization/deserialization logic
@@ -259,7 +282,7 @@ var prices = db.AsOfJoin<Price, Trade>((p, t) => p.Timestamp <= t.Timestamp);
 
 ---
 
-**Last Updated**: 2025-10-03
+**Last Updated**: 2025-10-05
 
 ---
 
@@ -267,12 +290,13 @@ var prices = db.AsOfJoin<Price, Trade>((p, t) => p.Timestamp <= t.Timestamp);
 
 | Version | Release Date | Key Feature | Status |
 |---------|-------------|-------------|--------|
+| v1.5.0 | 2025-10-05 | Bulk Insert with Deduplication | ✅ Released |
 | v1.4.0 | 2025-10-03 | High-Performance Bulk Insert | ✅ Released |
 | v1.3.0 | 2025-10-01 | Connection Timeout/Retry + Generic Factory | ✅ Released |
 | v1.2.0 | 2025-10-01 | Multi-Database Support | ✅ Released |
 | v1.1.0 | 2025-10-01 | Async/Await Support | ✅ Released |
 | v1.0.1 | 2025-10-01 | Critical BeforeExecFilter Fix | ✅ Released |
 | v1.0.0 | 2025-10-01 | Initial Release | ✅ Released |
-| v1.5.0 | Q1 2026 | Direct Parquet/CSV Operations | 📋 Planned |
-| v1.6.0 | Q2 2026 | DuckDB Complex Types | 📋 Planned |
-| v1.7.0 | Q3 2026 | Advanced Query Features | 📋 Planned |
+| v1.6.0 | Q1 2026 | Direct Parquet/CSV Operations | 📋 Planned |
+| v1.7.0 | Q2 2026 | DuckDB Complex Types | 📋 Planned |
+| v1.8.0 | Q3 2026 | Advanced Query Features | 📋 Planned |

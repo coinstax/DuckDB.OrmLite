@@ -6,8 +6,8 @@ A fully functional DuckDB provider for ServiceStack.OrmLite, enabling .NET devel
 
 ## Project Status: ✅ PRODUCTION READY
 
-- **Version**: 1.0.0
-- **Test Coverage**: 40 tests (38 passing - 95%)
+- **Version**: 1.5.0
+- **Test Coverage**: 119 tests (100% passing)
 - **DuckDB Version**: 1.3.2
 - **Target Framework**: .NET 8.0
 - **License**: MIT
@@ -148,29 +148,38 @@ DuckDB excels at:
 - Complex analytical queries
 - Memory-efficient operations on large datasets
 
+## Latest Features (v1.5.0)
+
+### Bulk Insert with Deduplication 🛡️
+- **Production-safe staging table pattern** for tables where indexes can't fit in memory
+- Solves DuckDB's in-memory index limitation for 100M+ row tables
+- Type-safe LINQ expression API: `db.BulkInsertWithDeduplication(records, x => new { x.Col1, x.Col2 })`
+- String-based API: `db.BulkInsertWithDeduplication(records, "Col1", "Col2")`
+- Auto-detection from attributes: `[CompositeKey]`, `[CompositeIndex(Unique=true)]`, `[Unique]`
+- Returns count of inserted rows (excluding duplicates)
+- Zero risk to main table - validates in staging first
+- 16 comprehensive deduplication tests
+
+### Previous Releases
+- **v1.4.0**: High-performance BulkInsert using Appender API (10-100x faster)
+- **v1.3.0**: Connection timeout/retry + Generic factory
+- **v1.2.0**: Multi-database support
+- **v1.1.0**: Async/await support
+- **v1.0.0**: Initial release
+
 ## Future Enhancements
 
-### Planned for v1.1.0
-1. **Async/Await Support** - Async versions of all operations (CountAsync, SelectAsync, InsertAsync, etc.)
-
-### Planned for v1.2.0
-2. **Multi-Database Support** - Transparent querying across multiple DuckDB files
-   - Enable time-series data partitioning (by year, month, etc.)
-   - Support staging databases for gap-filling workflows
-   - Zero code changes required for existing applications
-   - Read/write separation for optimal performance
-   - See docs/MULTI_DATABASE_SPEC.md for complete specification
-3. **Bulk Operations Optimization** - Use DuckDB's COPY command for massive performance gains
-4. **Direct Parquet/CSV Operations** - Query Parquet/CSV files directly through OrmLite
+### Planned for v1.6.0
+1. **Direct Parquet/CSV Operations** - Query Parquet/CSV files directly through OrmLite
 
 ### Under Consideration
-5. **DuckDB-Specific Types (LIST, STRUCT, MAP)** - Native support for complex types
-6. **Window Functions Support** - First-class LINQ support for ROW_NUMBER(), RANK(), etc.
-7. **Aggregate Functions** - DuckDB-specific aggregates (APPROX_COUNT_DISTINCT, etc.)
-8. **Time Series Optimizations** - Better handling of time-series data and ASOF joins
-9. **Query Performance Profiling** - Integration with EXPLAIN ANALYZE
-10. **Schema Migration Tools** - Database versioning and migration support
-11. **Additional DuckDB Configuration Options** - More control over DuckDB settings
+2. **DuckDB-Specific Types (LIST, STRUCT, MAP)** - Native support for complex types
+3. **Window Functions Support** - First-class LINQ support for ROW_NUMBER(), RANK(), etc.
+4. **Aggregate Functions** - DuckDB-specific aggregates (APPROX_COUNT_DISTINCT, etc.)
+5. **Time Series Optimizations** - Better handling of time-series data and ASOF joins
+6. **Query Performance Profiling** - Integration with EXPLAIN ANALYZE
+7. **Schema Migration Tools** - Database versioning and migration support
+8. **Additional DuckDB Configuration Options** - More control over DuckDB settings
 
 ## Getting Started
 

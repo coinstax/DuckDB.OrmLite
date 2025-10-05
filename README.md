@@ -31,6 +31,8 @@ This package enables ServiceStack.OrmLite to work with [DuckDB](https://duckdb.o
 - Batch operations
 - Async/await support (pseudo-async)
 - **High-performance bulk insert** - 10-100x faster using DuckDB's Appender API
+- **Bulk insert with deduplication** - Production-safe staging table pattern for massive tables
+- **Type-safe LINQ expressions** - IntelliSense support for unique column selection
 - **Multi-database support** - Query across multiple DuckDB files transparently
 
 ✅ **Complete Type Support**

@@ -9,6 +9,45 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [1.5.0] - 2025-10-05
 
+### Added - Type-Safe LINQ Expression API 🎯
+- **LINQ Expression Overload** - Type-safe unique column specification with IntelliSense support
+  - `db.BulkInsertWithDeduplication(records, x => x.Email)` - Single column
+  - `db.BulkInsertWithDeduplication(records, x => new { x.Col1, x.Col2 })` - Multiple columns
+  - `await db.BulkInsertWithDeduplicationAsync(records, x => new { x.Timestamp, x.Symbol })`
+  - Compile-time type checking catches typos
+  - Refactoring-safe (rename property updates expression)
+  - Cleaner syntax than string arrays
+
+### Fixed - Auto-Detection Logic 🔧
+- **Corrected multiple unique constraint handling**
+  - Previously incorrectly combined multiple constraints (e.g., CompositeKey + [Unique])
+  - Now uses priority-based selection: CompositeKey > CompositeIndex(Unique) > Individual [Unique]
+  - Throws clear error if multiple constraints at same priority level
+  - Prevents ambiguous deduplication keys that could miss duplicates
+
+### API Options Summary
+```csharp
+// Option 1: LINQ Expression (Recommended - type-safe)
+db.BulkInsertWithDeduplication(records, x => new { x.Col1, x.Col2 });
+
+// Option 2: String columns (flexible)
+db.BulkInsertWithDeduplication(records, "Col1", "Col2");
+
+// Option 3: Auto-detect from attributes
+[CompositeKey(nameof(Col1), nameof(Col2))]
+public class MyModel { ... }
+db.BulkInsertWithDeduplication(records);
+```
+
+### Test Coverage
+- 3 new LINQ expression tests
+- 3 new constraint validation tests
+- 119 total tests (100% passing)
+
+---
+
+## [1.5.0] - 2025-10-05 (Initial Release)
+
 ### Added
 - **Bulk Insert with Deduplication** 🛡️ - Production-safe bulk loading for massive tables
   - New `BulkInsertWithDeduplication<T>()` method using staging table pattern
