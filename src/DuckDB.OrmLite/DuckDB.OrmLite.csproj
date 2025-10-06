@@ -8,7 +8,7 @@
 
     <!-- Package Information -->
     <PackageId>DuckDB.OrmLite</PackageId>
-    <Version>1.5.0</Version>
+    <Version>1.5.1</Version>
     <Authors>CoinsTax LLC</Authors>
     <Company>CoinsTax LLC</Company>
     <Description>DuckDB provider for ServiceStack.OrmLite - A fast, simple, and typed ORM for .NET. Enables high-performance analytical queries and data processing with DuckDB's columnar storage engine. NEW: BulkInsertWithDeduplication for massive datasets (845M+ rows)! Type-safe LINQ expressions, staging tables, BulkInsert (10-100x faster), multi-database, async/await. Community-maintained, not officially endorsed by ServiceStack.</Description>
@@ -18,7 +18,7 @@
     <RepositoryType>git</RepositoryType>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
     <PackageReadmeFile>README.md</PackageReadmeFile>
-    <PackageReleaseNotes>v1.5.0: BULK INSERT WITH DEDUPLICATION! Type-safe LINQ API (x => x.Email), staging tables for 845M+ row datasets, auto-detection from attributes. Fixed auto-detection logic bug. 119 tests (100% passing). Perfect for massive datasets where UNIQUE constraints can't fit in memory.</PackageReleaseNotes>
+    <PackageReleaseNotes>v1.5.1: CRITICAL FIX for BulkInsertWithDeduplication - Now handles internal duplicates within incoming dataset. Uses ROW_NUMBER window function for efficient in-database deduplication. 122 tests (100% passing). Production-ready for datasets with duplicate rows.</PackageReleaseNotes>
 
     <!-- Build Configuration -->
     <GeneratePackageOnBuild>false</GeneratePackageOnBuild>

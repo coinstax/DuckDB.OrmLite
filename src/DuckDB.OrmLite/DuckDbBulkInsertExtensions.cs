@@ -255,7 +255,8 @@ public static class DuckDbBulkInsertExtensions
     }
 
     /// <summary>
-    /// Generates INSERT SELECT SQL with LEFT JOIN for deduplication
+    /// Generates INSERT SELECT SQL with LEFT JOIN for deduplication.
+    /// Uses CTE with ROW_NUMBER to handle internal duplicates in the staging table.
     /// </summary>
     private static string GenerateDeduplicatedInsertSql(
         string mainTableName,
@@ -276,17 +277,26 @@ public static class DuckDbBulkInsertExtensions
         var columnNames = string.Join(", ", fields.Select(f => $"\"{f.FieldName}\""));
         var selectColumns = string.Join(", ", fields.Select(f => $"s.\"{f.FieldName}\""));
 
+        // Build PARTITION BY clause for ROW_NUMBER (to deduplicate staging table internally)
+        var partitionByClause = string.Join(", ", uniqueKeyColumns.Select(col => $"\"{col}\""));
+
         // Build JOIN conditions
         var joinConditions = string.Join(" AND ",
             uniqueKeyColumns.Select(col => $"s.\"{col}\" = m.\"{col}\""));
 
-        // Build WHERE clause (check if main table key is NULL = not exists)
-        var whereClause = $"m.\"{uniqueKeyColumns[0]}\" IS NULL";
+        // Build WHERE clause (check if main table key is NULL = not exists, and rn = 1 for internal deduplication)
+        var whereClause = $"m.\"{uniqueKeyColumns[0]}\" IS NULL AND s.rn = 1";
 
+        // Use CTE to deduplicate staging table internally before checking against main table
         var sql = $@"
 INSERT INTO {quotedMainTable} ({columnNames})
+WITH DeduplicatedStaging AS (
+    SELECT *,
+           ROW_NUMBER() OVER (PARTITION BY {partitionByClause} ORDER BY (SELECT NULL)) as rn
+    FROM {quotedStagingTable}
+)
 SELECT {selectColumns}
-FROM {quotedStagingTable} s
+FROM DeduplicatedStaging s
 LEFT JOIN {quotedMainTable} m ON {joinConditions}
 WHERE {whereClause}";
 

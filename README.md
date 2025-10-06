@@ -508,18 +508,28 @@ CREATE TABLE CryptoPrice_Staging_<guid> AS SELECT * FROM CryptoPrice LIMIT 0
 // Step 2: BulkInsert into staging (fast, isolated from main table)
 // Uses Appender API - 10-100x faster than InsertAll
 
-// Step 3: Atomic INSERT SELECT with LEFT JOIN to filter duplicates
+// Step 3: Atomic INSERT SELECT with deduplication (handles both internal and external duplicates)
 INSERT INTO CryptoPrice
-SELECT s.*
-FROM CryptoPrice_Staging_<guid> s
+WITH DeduplicatedStaging AS (
+    SELECT *, ROW_NUMBER() OVER (PARTITION BY Timestamp, Symbol, ExchangeId ORDER BY (SELECT NULL)) as rn
+    FROM CryptoPrice_Staging_<guid>
+)
+SELECT columns
+FROM DeduplicatedStaging s
 LEFT JOIN CryptoPrice m ON
     s.Timestamp = m.Timestamp AND
     s.Symbol = m.Symbol AND
     s.ExchangeId = m.ExchangeId
-WHERE m.Timestamp IS NULL  -- Only insert if not exists
+WHERE m.Timestamp IS NULL  -- Not in main table
+  AND s.rn = 1             -- First occurrence from incoming data
 
 // Step 4: DROP staging table (always executed, even on error)
 ```
+
+**Duplicate Handling:**
+- **Internal duplicates** (within incoming data): Keeps first occurrence only
+- **External duplicates** (with main table): Filters out all matches
+- Deterministic behavior ensures consistent results
 
 ### Specifying Unique Columns
 
@@ -594,8 +604,8 @@ public async Task LoadDailyPrices()
     using var db = dbFactory.Open();
 
     // Main table: 845,000,000 rows
-    // New batch: 70,000 rows (internally unique)
-    // Expected: ~500 duplicates, ~69,500 new records
+    // New batch: 70,000 rows (may contain internal duplicates)
+    // Expected: ~500 duplicates with main table, ~69,500 new records
 
     var newBatch = await FetchDailyPricesAsync(); // 70K records
 

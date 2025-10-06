@@ -452,6 +452,116 @@ public class BulkInsertDeduplicationTests : IDisposable
     }
 
     [Fact]
+    public void BulkInsertWithDeduplication_InternalDuplicates_KeepsFirstOccurrenceOnly()
+    {
+        using var db = _dbFactory.Open();
+        db.CreateTable<TimeSeriesData>(overwrite: true);
+
+        // Insert initial data
+        var initialData = new List<TimeSeriesData>
+        {
+            new() { Timestamp = new DateTime(2025, 1, 1, 10, 0, 0), Symbol = "BTC", Value = 100 }
+        };
+        db.InsertAll(initialData);
+
+        // Try to insert data that has INTERNAL duplicates (duplicates within the incoming dataset)
+        var newData = new List<TimeSeriesData>
+        {
+            new() { Timestamp = new DateTime(2025, 1, 1, 10, 0, 0), Symbol = "BTC", Value = 999 }, // Duplicate with main table
+            new() { Timestamp = new DateTime(2025, 1, 1, 11, 0, 0), Symbol = "BTC", Value = 201 }, // First occurrence (should be kept)
+            new() { Timestamp = new DateTime(2025, 1, 1, 11, 0, 0), Symbol = "BTC", Value = 202 }, // Internal duplicate (should be ignored)
+            new() { Timestamp = new DateTime(2025, 1, 1, 11, 0, 0), Symbol = "BTC", Value = 203 }, // Internal duplicate (should be ignored)
+            new() { Timestamp = new DateTime(2025, 1, 1, 12, 0, 0), Symbol = "BTC", Value = 301 }, // First occurrence (should be kept)
+            new() { Timestamp = new DateTime(2025, 1, 1, 12, 0, 0), Symbol = "BTC", Value = 302 }, // Internal duplicate (should be ignored)
+            new() { Timestamp = new DateTime(2025, 1, 1, 13, 0, 0), Symbol = "BTC", Value = 401 }  // Unique (should be kept)
+        };
+
+        var insertedCount = db.BulkInsertWithDeduplication(newData, "Timestamp", "Symbol");
+
+        // Should insert 3 records:
+        // - 11:00 BTC (first occurrence, value 201)
+        // - 12:00 BTC (first occurrence, value 301)
+        // - 13:00 BTC (unique, value 401)
+        // Should NOT insert:
+        // - 10:00 BTC (duplicate with main table)
+        // - 11:00 BTC duplicates (values 202, 203)
+        // - 12:00 BTC duplicate (value 302)
+        Assert.Equal(3, insertedCount);
+
+        var allRecords = db.Select<TimeSeriesData>().OrderBy(x => x.Timestamp).ToList();
+        Assert.Equal(4, allRecords.Count); // 1 initial + 3 new
+
+        // Verify only first occurrences were inserted
+        var record11am = allRecords.First(r => r.Timestamp.Hour == 11);
+        Assert.Equal(201, record11am.Value); // First occurrence (201), not 202 or 203
+
+        var record12pm = allRecords.First(r => r.Timestamp.Hour == 12);
+        Assert.Equal(301, record12pm.Value); // First occurrence (301), not 302
+
+        var record1pm = allRecords.First(r => r.Timestamp.Hour == 13);
+        Assert.Equal(401, record1pm.Value); // Unique value
+    }
+
+    [Fact]
+    public void BulkInsertWithDeduplication_AllInternalDuplicates_InsertsOnlyFirst()
+    {
+        using var db = _dbFactory.Open();
+        db.CreateTable<TimeSeriesData>(overwrite: true);
+
+        // Try to insert data where ALL rows are internal duplicates
+        var newData = new List<TimeSeriesData>
+        {
+            new() { Timestamp = new DateTime(2025, 1, 1, 10, 0, 0), Symbol = "BTC", Value = 100 },
+            new() { Timestamp = new DateTime(2025, 1, 1, 10, 0, 0), Symbol = "BTC", Value = 200 },
+            new() { Timestamp = new DateTime(2025, 1, 1, 10, 0, 0), Symbol = "BTC", Value = 300 }
+        };
+
+        var insertedCount = db.BulkInsertWithDeduplication(newData, "Timestamp", "Symbol");
+
+        Assert.Equal(1, insertedCount); // Only first occurrence inserted
+        Assert.Equal(1, db.Count<TimeSeriesData>());
+
+        // Verify first occurrence was kept
+        var records = db.Select<TimeSeriesData>();
+        Assert.Single(records);
+        Assert.Equal(100, records.First().Value); // First value in the list
+    }
+
+    [Fact]
+    public void BulkInsertWithDeduplication_InternalDuplicatesWithCompositeKey_WorksCorrectly()
+    {
+        using var db = _dbFactory.Open();
+        db.CreateTable<TripleKeyModel>(overwrite: true);
+
+        // Insert initial data
+        var initialData = new List<TripleKeyModel>
+        {
+            new() { Timestamp = new DateTime(2025, 1, 1), VarcharCol = "A", BigintCol = 1, Value = 100 }
+        };
+        db.InsertAll(initialData);
+
+        // Insert data with internal duplicates on the triple key
+        var newData = new List<TripleKeyModel>
+        {
+            new() { Timestamp = new DateTime(2025, 1, 1), VarcharCol = "A", BigintCol = 1, Value = 999 }, // Duplicate with main
+            new() { Timestamp = new DateTime(2025, 1, 2), VarcharCol = "B", BigintCol = 2, Value = 201 }, // First occurrence
+            new() { Timestamp = new DateTime(2025, 1, 2), VarcharCol = "B", BigintCol = 2, Value = 202 }, // Internal duplicate
+            new() { Timestamp = new DateTime(2025, 1, 2), VarcharCol = "B", BigintCol = 2, Value = 203 }, // Internal duplicate
+            new() { Timestamp = new DateTime(2025, 1, 3), VarcharCol = "C", BigintCol = 3, Value = 301 }  // Unique
+        };
+
+        var insertedCount = db.BulkInsertWithDeduplication(newData, "Timestamp", "VarcharCol", "BigintCol");
+
+        Assert.Equal(2, insertedCount); // Only 2 new unique records
+        Assert.Equal(3, db.Count<TripleKeyModel>());
+
+        // Verify first occurrences were kept
+        var results = db.Select<TripleKeyModel>().OrderBy(x => x.Timestamp).ToList();
+        var record2 = results.First(r => r.Timestamp == new DateTime(2025, 1, 2));
+        Assert.Equal(201, record2.Value); // First occurrence, not 202 or 203
+    }
+
+    [Fact]
     public void BulkInsertWithDeduplication_StagingTableCleanup_AlwaysExecutes()
     {
         using var db = _dbFactory.Open();
