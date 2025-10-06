@@ -231,7 +231,9 @@ public static class DuckDbBulkInsertExtensions
     }
 
     /// <summary>
-    /// Generates CREATE TABLE statement for staging table
+    /// Generates CREATE TABLE statement for staging table.
+    /// IMPORTANT: Staging table must NOT have PRIMARY KEY, UNIQUE, or other constraints
+    /// to allow duplicate rows during the deduplication process.
     /// </summary>
     private static string GenerateCreateStagingTableSql<T>(
         string stagingTableName,
@@ -246,7 +248,25 @@ public static class DuckDbBulkInsertExtensions
         var columnDefs = new List<string>();
         foreach (var field in fields)
         {
+            // Get column definition but strip out constraints (PRIMARY KEY, UNIQUE, etc.)
+            // Staging table MUST accept duplicates for the deduplication logic to work
             var columnDef = dialectProvider.GetColumnDefinition(field);
+
+            // Remove PRIMARY KEY constraint
+            columnDef = System.Text.RegularExpressions.Regex.Replace(
+                columnDef, @"\s+PRIMARY\s+KEY", "",
+                System.Text.RegularExpressions.RegexOptions.IgnoreCase);
+
+            // Remove UNIQUE constraint
+            columnDef = System.Text.RegularExpressions.Regex.Replace(
+                columnDef, @"\s+UNIQUE", "",
+                System.Text.RegularExpressions.RegexOptions.IgnoreCase);
+
+            // Remove REFERENCES (foreign key) constraints
+            columnDef = System.Text.RegularExpressions.Regex.Replace(
+                columnDef, @"\s+REFERENCES\s+\S+(\s*\([^)]+\))?", "",
+                System.Text.RegularExpressions.RegexOptions.IgnoreCase);
+
             columnDefs.Add(columnDef);
         }
 

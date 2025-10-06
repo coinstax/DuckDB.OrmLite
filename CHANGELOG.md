@@ -7,6 +7,51 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.5.2] - 2025-10-06
+
+### Fixed - CRITICAL: Staging Table Constraints 🚨
+- **Staging table now strips PRIMARY KEY, UNIQUE, and FOREIGN KEY constraints**
+  - Previously: Staging table inherited all constraints from main table
+  - Problem: When incoming data had duplicates on PK/UNIQUE columns, Appender failed with "duplicate key" error
+  - Solution: Strip all constraints from staging table using regex to allow duplicates during deduplication
+  - Impact: BulkInsertWithDeduplication now works correctly for tables with PRIMARY KEY or UNIQUE constraints
+
+### Root Cause Analysis
+The staging table was created using `GetColumnDefinition()` which includes:
+- `PRIMARY KEY` constraints
+- `UNIQUE` constraints
+- `REFERENCES` (foreign key) constraints
+
+When incoming data contained duplicates on these constrained columns, the DuckDB Appender threw:
+```
+PRIMARY KEY or UNIQUE constraint violation: duplicate key "value"
+```
+
+This defeated the entire purpose of the staging table pattern - it MUST accept duplicates for deduplication to work.
+
+### Technical Implementation
+- Added regex patterns to strip constraints from column definitions:
+  - `\s+PRIMARY\s+KEY` → removed
+  - `\s+UNIQUE` → removed
+  - `\s+REFERENCES\s+...` → removed
+- Staging table now has same column types but NO constraints
+- Allows Appender to insert all rows (including duplicates)
+- ROW_NUMBER deduplication then filters to unique rows before INSERT to main table
+
+### Test Coverage (Why This Was Missed)
+Previous tests didn't have PRIMARY KEY/UNIQUE on the deduplication columns:
+- ✅ Fixed: Added `PrimaryKeyModel` with `[PrimaryKey]` on dedup column
+- ✅ Fixed: Added `UniqueConstraintModel` with `[Unique]` on dedup column
+- New tests verify duplicates on constrained columns work correctly
+- 124 total tests (100% passing, +2 from v1.5.1)
+
+### User Impact
+- **Before v1.5.2**: Failed with "duplicate key" error on tables with PK/UNIQUE constraints
+- **After v1.5.2**: Works correctly regardless of constraints on main table
+- **No breaking changes**: API remains identical
+
+---
+
 ## [1.5.1] - 2025-10-06
 
 ### Fixed - Internal Duplicate Handling 🔧

@@ -1,0 +1,1 @@
+- The NuGet API key is in nuget-apikey.txt

@@ -613,6 +613,152 @@ public class BulkInsertDeduplicationTests : IDisposable
     }
 
     [Fact]
+    public void BulkInsertWithDeduplication_WithPrimaryKeyConstraint_AllowsDuplicatesInStaging()
+    {
+        using var db = _dbFactory.Open();
+        db.CreateTable<PrimaryKeyModel>(overwrite: true);
+
+        // Insert initial data with PRIMARY KEY
+        db.Insert(new PrimaryKeyModel { Timestamp = new DateTime(2025, 1, 1, 10, 0, 0), Value = 100 });
+
+        // Try to insert data with duplicates on the PRIMARY KEY column
+        // This should NOT fail even though Timestamp is PRIMARY KEY
+        // because staging table should not have constraints
+        var newData = new List<PrimaryKeyModel>
+        {
+            new() { Timestamp = new DateTime(2025, 1, 1, 10, 0, 0), Value = 999 }, // Duplicate PK (should be filtered)
+            new() { Timestamp = new DateTime(2025, 1, 1, 11, 0, 0), Value = 201 }, // First occurrence
+            new() { Timestamp = new DateTime(2025, 1, 1, 11, 0, 0), Value = 202 }, // Internal duplicate on PK
+            new() { Timestamp = new DateTime(2025, 1, 1, 12, 0, 0), Value = 301 }  // Unique
+        };
+
+        var insertedCount = db.BulkInsertWithDeduplication(newData, "Timestamp");
+
+        Assert.Equal(2, insertedCount); // Only 11:00 and 12:00 inserted
+        Assert.Equal(3, db.Count<PrimaryKeyModel>());
+
+        var records = db.Select<PrimaryKeyModel>().OrderBy(x => x.Timestamp).ToList();
+        Assert.Equal(100, records.First(r => r.Timestamp.Hour == 10).Value); // Original preserved
+        Assert.Equal(201, records.First(r => r.Timestamp.Hour == 11).Value); // First occurrence kept
+    }
+
+    [Fact]
+    public void BulkInsertWithDeduplication_WithUniqueConstraint_AllowsDuplicatesInStaging()
+    {
+        using var db = _dbFactory.Open();
+        db.CreateTable<UniqueConstraintModel>(overwrite: true);
+
+        // Insert initial data
+        db.Insert(new UniqueConstraintModel { Code = "ABC", Name = "Original" });
+
+        // Try to insert data with duplicates on UNIQUE column
+        var newData = new List<UniqueConstraintModel>
+        {
+            new() { Code = "ABC", Name = "Duplicate" },  // Duplicate on UNIQUE (filtered)
+            new() { Code = "DEF", Name = "First" },      // First occurrence
+            new() { Code = "DEF", Name = "Second" },     // Internal duplicate on UNIQUE
+            new() { Code = "GHI", Name = "Unique" }      // Unique
+        };
+
+        var insertedCount = db.BulkInsertWithDeduplication(newData, "Code");
+
+        Assert.Equal(2, insertedCount); // Only DEF and GHI inserted
+        Assert.Equal(3, db.Count<UniqueConstraintModel>());
+
+        var abc = db.Single<UniqueConstraintModel>(x => x.Code == "ABC");
+        Assert.Equal("Original", abc.Name); // Original preserved, not overwritten
+    }
+
+    [Fact]
+    public async System.Threading.Tasks.Task BulkInsertWithDeduplication_DescribeDoesNotBlock_DuringInsert()
+    {
+        // Use file-based DB so both connections see same database
+        var dbPath = $"/tmp/health_check_test_{Guid.NewGuid():N}.db";
+        var testFactory = new DuckDbOrmLiteConnectionFactory($"Data Source={dbPath}");
+
+        try
+        {
+            using var db = testFactory.Open();
+            db.CreateTable<TimeSeriesData>(overwrite: true);
+
+            // Insert some initial data
+            var initialData = Enumerable.Range(1, 100).Select(i => new TimeSeriesData
+            {
+                Timestamp = new DateTime(2025, 1, 1).AddMinutes(i),
+                Symbol = "BTC",
+                Value = i
+            }).ToList();
+            db.InsertAll(initialData);
+
+            // Prepare larger bulk insert data to ensure it takes measurable time
+            var bulkData = Enumerable.Range(1000, 50000).Select(i => new TimeSeriesData
+            {
+                Timestamp = new DateTime(2025, 1, 1).AddMinutes(i),
+                Symbol = "BTC",
+                Value = i
+            }).ToList();
+
+            // Track if DESCRIBE succeeded
+            var describeSucceeded = false;
+            var insertWasRunning = false;
+            Exception describeException = null;
+
+            // Start bulk insert in background task (keeps connection 1 busy)
+            var insertStarted = new System.Threading.ManualResetEventSlim(false);
+            var bulkInsertTask = System.Threading.Tasks.Task.Run(() =>
+            {
+                try
+                {
+                    insertStarted.Set(); // Signal that we're about to start
+                    db.BulkInsertWithDeduplication(bulkData, "Timestamp", "Symbol");
+                }
+                catch (Exception ex)
+                {
+                    _output.WriteLine($"Bulk insert error: {ex.Message}");
+                }
+            });
+
+            // Wait for insert to definitely start
+            insertStarted.Wait();
+            await System.Threading.Tasks.Task.Delay(50); // Give it time to get into INSERT SELECT
+
+            // While bulk insert is running, try DESCRIBE on separate connection (health check simulation)
+            using var healthCheckDb = testFactory.Open();
+            try
+            {
+                insertWasRunning = !bulkInsertTask.IsCompleted; // Check BEFORE DESCRIBE
+
+                var schema = healthCheckDb.SqlList<Dictionary<string, object>>("DESCRIBE TimeSeriesData");
+
+                describeSucceeded = schema.Count > 0;
+
+                _output.WriteLine($"DESCRIBE returned {schema.Count} columns. Insert was running: {insertWasRunning}, Insert still running: {!bulkInsertTask.IsCompleted}");
+            }
+            catch (Exception ex)
+            {
+                describeException = ex;
+                _output.WriteLine($"DESCRIBE failed: {ex.Message}");
+            }
+
+            // Wait for bulk insert to complete
+            await bulkInsertTask;
+
+            // Assertions - DESCRIBE should succeed regardless of timing
+            Assert.True(describeSucceeded, "DESCRIBE should succeed (even if insert finished quickly)");
+            Assert.Null(describeException);
+
+            // Note: We don't assert insertWasRunning because the insert might be very fast
+            // The key assertion is that DESCRIBE succeeded without blocking/erroring
+        }
+        finally
+        {
+            // Cleanup
+            if (System.IO.File.Exists(dbPath))
+                System.IO.File.Delete(dbPath);
+        }
+    }
+
+    [Fact]
     public void BulkInsertWithDeduplication_845MillionRowScenario_SimulatedTest()
     {
         using var db = _dbFactory.Open();
@@ -761,4 +907,26 @@ public class CompositeKeyWithUniqueModel
     [Unique]
     public string TransactionId { get; set; }
     public decimal Value { get; set; }
+}
+
+/// <summary>
+/// Model with PRIMARY KEY on Timestamp column
+/// </summary>
+public class PrimaryKeyModel
+{
+    [PrimaryKey]
+    public DateTime Timestamp { get; set; }
+    public decimal Value { get; set; }
+}
+
+/// <summary>
+/// Model with UNIQUE constraint on Code column
+/// </summary>
+public class UniqueConstraintModel
+{
+    [AutoIncrement]
+    public int Id { get; set; }
+    [Unique]
+    public string Code { get; set; }
+    public string Name { get; set; }
 }
