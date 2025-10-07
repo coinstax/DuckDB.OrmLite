@@ -54,7 +54,46 @@ public class DuckDbDateTimeConverter : DateTimeConverter
     public override string ToQuotedString(Type fieldType, object value)
     {
         var dateTime = (DateTime)value;
+        // Treat Unspecified as UTC (don't convert Local to UTC here, just format)
         return $"'{dateTime:yyyy-MM-dd HH:mm:ss.ffffff}'::TIMESTAMP";
+    }
+
+    public override object ToDbValue(Type fieldType, object value)
+    {
+        if (value is DateTime dateTime)
+        {
+            // Convert Local to UTC
+            if (dateTime.Kind == DateTimeKind.Local)
+            {
+                return dateTime.ToUniversalTime();
+            }
+            // Treat Unspecified as UTC - explicitly set the Kind
+            if (dateTime.Kind == DateTimeKind.Unspecified)
+            {
+                return DateTime.SpecifyKind(dateTime, DateTimeKind.Utc);
+            }
+            // Already UTC
+            return dateTime;
+        }
+        return base.ToDbValue(fieldType, value);
+    }
+
+    public override object FromDbValue(Type fieldType, object value)
+    {
+        var result = base.FromDbValue(fieldType, value);
+
+        if (result is DateTime dateTime)
+        {
+            // CRITICAL: DuckDB TIMESTAMP is timezone-naive (no timezone info stored)
+            // We assume all dates in the database are UTC
+            // Always return DateTime with Kind = UTC
+            if (dateTime.Kind != DateTimeKind.Utc)
+            {
+                return DateTime.SpecifyKind(dateTime, DateTimeKind.Utc);
+            }
+        }
+
+        return result;
     }
 }
 
