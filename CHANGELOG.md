@@ -7,6 +7,69 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.5.4] - 2025-10-09
+
+### Fixed - CRITICAL: DECIMAL Precision Preservation in Staging Tables 🔢
+- **Staging tables now preserve exact DECIMAL precision from main table**
+  - Previously: Staging table used default DECIMAL(18,6) from C# model metadata
+  - Problem: Users with DECIMAL(38,6) got "number too large" errors during BulkInsertWithDeduplication
+  - Solution: Use `CREATE TABLE AS SELECT ... LIMIT 0` to copy exact schema from database
+  - Impact: Works correctly with any DECIMAL precision/scale defined in database
+
+### Root Cause Analysis
+The `GenerateCreateStagingTableSql` method was building column definitions from C# model metadata using `GetColumnDefinition()`. This returned the default `DECIMAL(18,6)` from `DuckDbDecimalConverter` regardless of what the actual database table had. When users created tables with custom DECIMAL precision (e.g., DECIMAL(38,6) for cryptocurrency prices), the staging table would have the wrong precision, causing "number too large" errors when bulk inserting values that fit in DECIMAL(38,6) but not in DECIMAL(18,6).
+
+**Example of the bug:**
+```csharp
+// Table with DECIMAL(38,6)
+db.ExecuteSql("CREATE TABLE Prices (Symbol VARCHAR, Price DECIMAL(38,6))");
+
+// This would fail with "number too large"
+var prices = new[] { new Price { Symbol = "BTC", Price = 12345678901234567890123456.123456m } };
+db.BulkInsertWithDeduplication(prices, "Symbol");  // ERROR: staging table has DECIMAL(18,6)
+```
+
+### Solution Implementation
+Changed to use DuckDB's schema copy feature:
+
+**Before:**
+```csharp
+var columnDef = dialectProvider.GetColumnDefinition(field);  // Returns DECIMAL(18,6)
+// + regex to strip constraints
+sql = $"CREATE TABLE staging ({columnDefs})";
+```
+
+**After:**
+```csharp
+var columnList = string.Join(", ", fields.Select(f => $"\"{f.FieldName}\""));
+sql = $"CREATE TABLE staging AS SELECT {columnList} FROM main LIMIT 0";
+// Copies exact schema: DECIMAL(38,6), VARCHAR(100), etc.
+```
+
+### Benefits
+- ✅ **Exact type preservation** - All column types match database exactly
+- ✅ **No constraints** - DuckDB doesn't copy constraints with CREATE TABLE AS SELECT (perfect for staging)
+- ✅ **Simpler code** - Removed ~25 lines of regex constraint stripping
+- ✅ **More reliable** - Uses actual database schema, not C# model assumptions
+
+### Test Coverage
+- Added `BulkInsertWithDeduplication_CustomDecimalPrecision_PreservesExactSchema`
+- Tests DECIMAL(38,6) and DECIMAL(20,8) preservation
+- Verifies large values: `12345678901234567890123456.123456m` (32 total digits)
+- 134 total tests (100% passing, +1 from v1.5.3)
+
+### User Impact
+- **Before v1.5.4**: Failed with "number too large" if DECIMAL precision > 18 or scale > 6
+- **After v1.5.4**: Works with any DECIMAL precision defined in database (up to DECIMAL(38,38))
+- **No breaking changes**: Behavior improved, API unchanged
+- **Migration**: No code changes needed - existing code now works with custom precisions
+
+### Files Changed
+- `src/DuckDB.OrmLite/DuckDbBulkInsertExtensions.cs` - Use CREATE TABLE AS SELECT for schema copy
+- `tests/DuckDB.OrmLite.Tests/BulkInsertDeduplicationTests.cs` - Add CustomDecimalModel and precision test
+
+---
+
 ## [1.5.3] - 2025-10-06
 
 ### Fixed - CRITICAL: DateTime Kind Handling 🕐
