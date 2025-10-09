@@ -810,6 +810,63 @@ public class BulkInsertDeduplicationTests : IDisposable
             x.BigintCol == 950);
         Assert.Equal(950 * 1.5m, record950.Value); // Original value preserved
     }
+
+    [Fact]
+    public void BulkInsertWithDeduplication_CustomDecimalPrecision_PreservesExactSchema()
+    {
+        using var db = _dbFactory.Open();
+
+        // Create table with custom DECIMAL precision
+        db.CreateTable<CustomDecimalModel>(overwrite: true);
+
+        // Verify table schema has correct DECIMAL precision
+        var schema = db.SqlList<Dictionary<string, object>>("DESCRIBE CustomDecimalModel");
+        var priceCol = schema.First(c => c["column_name"].ToString() == "Price");
+        var volumeCol = schema.First(c => c["column_name"].ToString() == "Volume");
+
+        _output.WriteLine($"Price column type: {priceCol["column_type"]}");
+        _output.WriteLine($"Volume column type: {volumeCol["column_type"]}");
+
+        Assert.Contains("DECIMAL(38,6)", priceCol["column_type"].ToString());
+        Assert.Contains("DECIMAL(20,8)", volumeCol["column_type"].ToString());
+
+        // Insert test data with large values that require extended precision
+        // C# decimal max is ~79 septillion (29 digits), so we use values near that limit
+        var testData = new List<CustomDecimalModel>
+        {
+            new()
+            {
+                Timestamp = new DateTime(2025, 1, 1, 10, 0, 0),
+                Symbol = "BTC",
+                Price = 12345678901234567890123456.123456m,  // 32 digits total (26.6) - tests DECIMAL(38,6)
+                Volume = 123456789012.12345678m  // 20 digits total (12.8) - tests DECIMAL(20,8)
+            },
+            new()
+            {
+                Timestamp = new DateTime(2025, 1, 1, 11, 0, 0),
+                Symbol = "ETH",
+                Price = 98765432109876543210987654.654321m,  // 32 digits total (26.6)
+                Volume = 987654321098.87654321m  // 20 digits total (12.8)
+            }
+        };
+
+        // This should work without "number too large" errors
+        // because staging table should have DECIMAL(38,6) and DECIMAL(20,8) from main table
+        var insertedCount = db.BulkInsertWithDeduplication(testData, "Timestamp", "Symbol");
+
+        Assert.Equal(2, insertedCount);
+        Assert.Equal(2, db.Count<CustomDecimalModel>());
+
+        // Verify data was inserted correctly with full precision
+        var records = db.Select<CustomDecimalModel>().OrderBy(x => x.Timestamp).ToList();
+
+        Assert.Equal(12345678901234567890123456.123456m, records[0].Price);
+        Assert.Equal(123456789012.12345678m, records[0].Volume);
+        Assert.Equal(98765432109876543210987654.654321m, records[1].Price);
+        Assert.Equal(987654321098.87654321m, records[1].Volume);
+
+        _output.WriteLine($"✓ DECIMAL precision preserved: Price={records[0].Price}, Volume={records[0].Volume}");
+    }
 }
 
 // Test Models
@@ -929,4 +986,19 @@ public class UniqueConstraintModel
     [Unique]
     public string Code { get; set; }
     public string Name { get; set; }
+}
+
+/// <summary>
+/// Model with custom DECIMAL precision for testing schema preservation
+/// </summary>
+public class CustomDecimalModel
+{
+    [AutoIncrement]
+    public int Id { get; set; }
+    public DateTime Timestamp { get; set; }
+    public string Symbol { get; set; }
+    [DecimalLength(38, 6)]  // Custom precision: DECIMAL(38,6)
+    public decimal Price { get; set; }
+    [DecimalLength(20, 8)]  // Custom precision: DECIMAL(20,8)
+    public decimal Volume { get; set; }
 }

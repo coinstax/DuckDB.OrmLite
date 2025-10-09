@@ -231,46 +231,30 @@ public static class DuckDbBulkInsertExtensions
     }
 
     /// <summary>
-    /// Generates CREATE TABLE statement for staging table.
-    /// IMPORTANT: Staging table must NOT have PRIMARY KEY, UNIQUE, or other constraints
-    /// to allow duplicate rows during the deduplication process.
+    /// Generates CREATE TABLE statement for staging table by copying the main table's schema.
+    /// Uses CREATE TABLE AS SELECT ... LIMIT 0 to get an exact schema copy without data.
+    /// This preserves all column types (including DECIMAL precision/scale) exactly as defined in the database.
     /// </summary>
     private static string GenerateCreateStagingTableSql<T>(
         string stagingTableName,
         DuckDbDialectProvider dialectProvider,
         ServiceStack.OrmLite.ModelDefinition modelDef)
     {
-        // Build CREATE TABLE statement manually, excluding auto-increment fields
+        var mainTableName = dialectProvider.NamingStrategy.GetTableName(modelDef.ModelName);
+
+        // Get non-auto-increment columns to copy
         var fields = modelDef.FieldDefinitions
             .Where(f => !f.AutoIncrement)
+            .Select(f => $"\"{f.FieldName}\"")
             .ToList();
 
-        var columnDefs = new List<string>();
-        foreach (var field in fields)
-        {
-            // Get column definition but strip out constraints (PRIMARY KEY, UNIQUE, etc.)
-            // Staging table MUST accept duplicates for the deduplication logic to work
-            var columnDef = dialectProvider.GetColumnDefinition(field);
+        var columnList = string.Join(", ", fields);
 
-            // Remove PRIMARY KEY constraint
-            columnDef = System.Text.RegularExpressions.Regex.Replace(
-                columnDef, @"\s+PRIMARY\s+KEY", "",
-                System.Text.RegularExpressions.RegexOptions.IgnoreCase);
+        // Create staging table with exact schema from main table (without data or constraints)
+        // SELECT ... LIMIT 0 copies the schema perfectly including DECIMAL(38,6) etc.
+        // DuckDB doesn't copy constraints with CREATE TABLE AS SELECT
+        var sql = $"CREATE TABLE \"{stagingTableName}\" AS SELECT {columnList} FROM \"{mainTableName}\" LIMIT 0";
 
-            // Remove UNIQUE constraint
-            columnDef = System.Text.RegularExpressions.Regex.Replace(
-                columnDef, @"\s+UNIQUE", "",
-                System.Text.RegularExpressions.RegexOptions.IgnoreCase);
-
-            // Remove REFERENCES (foreign key) constraints
-            columnDef = System.Text.RegularExpressions.Regex.Replace(
-                columnDef, @"\s+REFERENCES\s+\S+(\s*\([^)]+\))?", "",
-                System.Text.RegularExpressions.RegexOptions.IgnoreCase);
-
-            columnDefs.Add(columnDef);
-        }
-
-        var sql = $"CREATE TABLE \"{stagingTableName}\" ({string.Join(", ", columnDefs)})";
         return sql;
     }
 
